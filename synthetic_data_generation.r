@@ -78,22 +78,22 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
   )
 }
 
-# Example usage:
-n_train <- 100  # Vary this for the training set
-n_val <- 1000   # Keep validation and test set constant
-n_test <- 1000
+# # Example usage:
+# n_train <- 100  # Vary this for the training set
+# n_val <- 1000   # Keep validation and test set constant
+# n_test <- 1000
 
-# Control the amount of noise and problem hardness
-noise_level <- 0.3
-hardness <- 0.7  # Lower value means harder problem (closer classes)
+# # Control the amount of noise and problem hardness
+# noise_level <- 0.3
+# hardness <- 0.7  # Lower value means harder problem (closer classes)
 
-synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
+# synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
 
-# Check the generated data
-str(synthetic_data)
+# # Check the generated data
+# str(synthetic_data)
 
-# Plot the training data
-# Create a pair plot
-ggpairs(synthetic_data$train, aes(color = y_train)) +
-  ggtitle("Pair Plot of Synthetic Training Data")
+# # Plot the training data
+# # Create a pair plot
+# ggpairs(synthetic_data$train, aes(color = y_train)) +
+#   ggtitle("Pair Plot of Synthetic Training Data")
 

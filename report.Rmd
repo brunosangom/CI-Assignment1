@@ -1,3 +1,17 @@
+---
+title: "Computational Intelligence - Assignment 1"
+author: "Bruno Sánchez and Sheena Lang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+This is an example of R Markdown.
+
+## Analysis
+
+```{r}
 # Required Libraries
 library(MASS)  # for multivariate normal data generation
 library(caret) # for splitting the data
@@ -83,17 +97,32 @@ n_train <- 100  # Vary this for the training set
 n_val <- 1000   # Keep validation and test set constant
 n_test <- 1000
 
-# Control the amount of noise and problem hardness
-noise_level <- 0.3
-hardness <- 0.7  # Lower value means harder problem (closer classes)
+# Load necessary libraries
+library(GGally)
 
-synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
+# Set your parameters
+n_train <- 100
+n_val <- 50
+n_test <- 50
 
-# Check the generated data
-str(synthetic_data)
+# Define noise levels and hardness values
+noise_levels <- c(0.1, 0.5, 1)
+hardness_values <- c(0.2, 0.8, 2)
 
-# Plot the training data
-# Create a pair plot
-ggpairs(synthetic_data$train, aes(color = y_train)) +
-  ggtitle("Pair Plot of Synthetic Training Data")
+# Create an empty list to store results
+results <- list()
+
+# Loop through noise levels and hardness values
+for (noise_level in noise_levels) {
+  for (hardness in hardness_values) {
+    # Generate synthetic data
+    synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
+    
+    # Plot the training data
+    plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
+        ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
+
+    print(plot)
+  }
+}
 

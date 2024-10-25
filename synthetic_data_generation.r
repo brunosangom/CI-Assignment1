@@ -89,19 +89,11 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
 
 # synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
 
-<<<<<<< HEAD
-# # Check the generated data
-# str(synthetic_data)
-
-# # Plot the training data
-# # Create a pair plot
-=======
 # Check the generated data
 # str(synthetic_data)
 
 # Plot the training data
 # Create a pair plot
->>>>>>> ac72d6ee1edf8266243213658385e7318aefc47f
 # ggpairs(synthetic_data$train, aes(color = y_train)) +
 #   ggtitle("Pair Plot of Synthetic Training Data")
 

@@ -3,7 +3,6 @@ source("nn.r")
 
 library(tictoc)
 
-
 # ---------- DATA PARAMETERS ----------
 
 # Hardness 

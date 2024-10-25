@@ -9,30 +9,26 @@ output: html_document
 
 This is an example of R Markdown.
 
-## Analysis
+## Data Collection
 
 ```{r}
-# Required Libraries
-library(MASS)  # for multivariate normal data generation
-library(caret) # for splitting the data
+
+library(MASS)  
+library(caret) 
 library(lattice)
 library(GGally)
 
-# Function to generate synthetic data
+
 generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, hardness = 0.5) {
-  # Set seed for reproducibility
   set.seed(123)
   
-  # Mean vectors for two classes
   mu_setosa <- c(5.01, 3.43, 1.46, 0.246)  
   mu_versicolor <- c(5.94, 2.77, 4.26, 1.33)  
   mu_virginica <- c(6.59, 2.97, 5.55, 2.03)
 
-  # The hardness parameter controls class separation
   mu_setosa <- mu_setosa - c(hardness, hardness, hardness, hardness)
   mu_virginica <- mu_virginica + c(hardness, hardness, hardness, hardness) 
 
-  # Covariances
   setosa_cov <- matrix(c(
     0.12424898, 0.099216327, 0.016355102, 0.010330612,
     0.09921633, 0.143689796, 0.011697959, 0.009297959,
@@ -54,22 +50,18 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
     0.04909388, 0.04762857, 0.04882449, 0.07543265
   ), nrow = 4, byrow = TRUE)  
   
-  # Generate data for class setosa
   X_setosa_train <- mvrnorm(n_train %/% 3, mu_setosa, setosa_cov)
   X_setosa_val <- mvrnorm(n_val %/% 3, mu_setosa, setosa_cov)
   X_setosa_test <- mvrnorm(n_test %/% 3, mu_setosa, setosa_cov) 
   
-  # Generate data for class setosa
   X_versicolor_train <- mvrnorm(n_train %/% 3, mu_versicolor, versicolor_cov)
   X_versicolor_val <- mvrnorm(n_val %/% 3, mu_versicolor, versicolor_cov)
   X_versicolor_test <- mvrnorm(n_test %/% 3, mu_versicolor, versicolor_cov) 
   
-  # Generate data for class setosa
   X_virginica_train <- mvrnorm(n_train %/% 3, mu_virginica, virginica_cov)
   X_virginica_val <- mvrnorm(n_val %/% 3, mu_virginica, virginica_cov)
   X_virginica_test <- mvrnorm(n_test %/% 3, mu_virginica, virginica_cov)
   
-  # Combine the data
   X_train <- rbind(X_setosa_train, X_versicolor_train, X_virginica_train)
   y_train <- c(rep(0, n_train %/% 3), rep(1, n_train %/% 3), rep(2, n_train %/% 3))
   
@@ -79,12 +71,10 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
   X_test <- rbind(X_setosa_test, X_versicolor_test, X_virginica_test)
   y_test <- c(rep(0, n_test %/% 3), rep(1, n_test %/% 3), rep(2, n_test %/% 3))
   
-  # Add noise to the features (controlled by noise_level)
   X_train <- X_train + rnorm(length(X_train), 0, noise_level)
   X_val <- X_val + rnorm(length(X_val), 0, noise_level)
   X_test <- X_test + rnorm(length(X_test), 0, noise_level)
   
-  # Return a list containing the datasets
   list(
     train = data.frame(X_train, y_train = as.factor(y_train)),
     val = data.frame(X_val, y_val = as.factor(y_val)),
@@ -92,33 +82,16 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
   )
 }
 
-# Example usage:
-n_train <- 100  # Vary this for the training set
-n_val <- 1000   # Keep validation and test set constant
-n_test <- 1000
+hardness_values <- c(0.2, 1, 2)
+noise_levels <- c(0.2, 1, 2)
+training_sizes <- c(100, 1000, 10000)
+validation_size <- 1000
+test_size <- 1000
 
-# Load necessary libraries
-library(GGally)
-
-# Set your parameters
-n_train <- 100
-n_val <- 50
-n_test <- 50
-
-# Define noise levels and hardness values
-noise_levels <- c(0.1, 0.5, 1)
-hardness_values <- c(0.2, 0.8, 2)
-
-# Create an empty list to store results
-results <- list()
-
-# Loop through noise levels and hardness values
 for (noise_level in noise_levels) {
   for (hardness in hardness_values) {
-    # Generate synthetic data
     synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
     
-    # Plot the training data
     plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
         ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
 
@@ -126,3 +99,143 @@ for (noise_level in noise_levels) {
   }
 }
 ```
+
+## Neural Network
+
+```{r
+
+library(nnet)
+
+train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
+
+  train_data$y_train <- as.factor(train_data$y_train)
+
+  model <- nnet(y_train ~ ., 
+                data = train_data, 
+                size = size, 
+                maxit = maxit, 
+                decay = decay, 
+                linout = FALSE)
+
+  return(model)
+}
+
+test_nn <- function(best_model, test_data){
+
+    y_pred = predict(best_model, newdata = test_data[, -ncol(test_data)], type = "class")
+
+    accuracy = accuracy <- mean(y_pred == test_data[, ncol(test_data)])
+    
+    cat(sprintf("Test Accuracy: %.4f\n", accuracy))
+    
+    return(accuracy)
+}
+
+}
+```
+
+## Genetic Algorithm
+
+
+## Evolution Strategy
+
+
+## Run
+
+```{r}
+
+library(tictoc)
+
+# ---------- DATA PARAMETERS ----------
+
+hardness_values <- c(0.2, 1, 2)
+noise_levels <- c(0.2, 1, 2)
+training_sizes <- c(100, 1000, 10000)
+validation_size <- 1000
+test_size <- 1000
+
+# ---------- RUN PARAMETERS ----------
+
+sizes <- c(1, 5, 10)
+maxits <- c(100, 200, 300) 
+training_functions  <- c("train_nn")
+
+
+# ---------- RESULT STRUCTURE ----------
+
+results <- data.frame(
+  hardness = numeric(),
+  noise = numeric(),
+  training_size = numeric(),
+  size = numeric(),
+  maxit = numeric(),
+  training_function = character(),
+  test_accuracy = numeric(),
+  training_time = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# ---------- EVALUATION ----------
+
+for (hardness in hardness_values) {
+  for (noise in noise_levels) {
+    for (training_size in training_sizes) {
+
+      data <- generate_synthetic_data(training_size, validation_size, test_size, noise, hardness)
+      
+      train_data <- data$train
+      val_data <- data$val
+      test_data <- data$test
+
+      for (size in sizes) {
+        for (maxit in maxits) {
+          for (training_function in training_functions) {
+            
+            # Retrieve the training function by name
+            func <- get(training_function)
+            
+            # Measure training time using tic and toc
+            tic() 
+            model <- func(train_data, size, maxit)
+            training_time <- toc(quiet = TRUE)$toc 
+            
+            # Test accuracy
+            test_accuracy <- test_nn(model, test_data)
+            
+            # Store result
+            results <- rbind(results, data.frame(
+              hardness = hardness,
+              noise = noise,
+              training_size = training_size,
+              size = size,
+              maxit = maxit,
+              training_function = training_function,
+              test_accuracy = test_accuracy,
+              training_time = training_time
+            ))
+          }
+        }
+      }
+    }
+  }
+}
+
+# Identify the fastest and most accurate runs
+fastest_run <- results[which.min(results$training_time), ]
+most_accurate_run <- results[which.max(results$test_accuracy), ]
+
+# Print results
+print("Fastest Run:")
+print(fastest_run)
+
+print("Most Accurate Run:")
+print(most_accurate_run)
+```
+
+## Evaluation & results
+
+```{r}
+
+
+```
+

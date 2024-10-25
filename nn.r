@@ -13,7 +13,6 @@ train_data <- data$train
 val_data <- data$val
 test_data <- data$test
 
-
 # Size - Number of hidden neurons
 # Maxit - Maximum number of iterations or epochs for the training process
 # Decay - Regularization parameter, which penalizes large weights
@@ -25,6 +24,7 @@ train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
                 maxit = maxit, 
                 decay = decay, 
                 linout = FALSE)
+
   return(model)
 }
 
@@ -67,8 +67,8 @@ test_nn <- function(best_model, test_data){
 
 
 # Hyperparameter search
-sizes <- c(1, 5, 10)       
-maxits <- c(100, 200, 300) 
+sizes <- c(1)       
+maxits <- c(100) 
 
 res_hyperparameter_search <- hyperparameter_search(train_data, val_data, sizes, maxits)
 

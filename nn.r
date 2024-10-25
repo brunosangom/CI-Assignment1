@@ -2,11 +2,11 @@ library(nnet)
 source("synthetic_data_generation.r")
 
 
-n_train <- 100  
-n_val <- 1000   
+n_train <- 1000
+n_val <- 1000  
 n_test <- 1000
 noise_level <- 0.3
-hardness <- 0.7 
+hardness <- 0.5
 
 data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
 train_data <- data$train
@@ -17,7 +17,7 @@ test_data <- data$test
 # Size - Number of hidden neurons
 # Maxit - Maximum number of iterations or epochs for the training process
 # Decay - Regularization parameter, which penalizes large weights
-train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.0001) {
+train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
   train_data$y_train <- as.factor(train_data$y_train)
   model <- nnet(y_train ~ ., 
                 data = train_data, 
@@ -38,7 +38,7 @@ hyperparameter_search <- function(train_data, val_data, sizes, maxits) {
         model <- train_nn(train_data, size, maxit)
         
         y_pred <- predict(model, newdata = val_data[, -ncol(val_data)], type = "class")
-        accuracy <- accuracy <- mean(y_pred == val_data[, ncol(val_data)])
+        accuracy <- mean(y_pred == val_data[, ncol(val_data)])
 
         
         if (accuracy > best_accuracy) {
@@ -54,7 +54,7 @@ hyperparameter_search <- function(train_data, val_data, sizes, maxits) {
 }
 
 
-test_nn <- function(best_model, test_data, size = 1, maxit = 200, decay = 0.0001, random_state=42){
+test_nn <- function(best_model, test_data){
 
     y_pred = predict(best_model, newdata = test_data[, -ncol(test_data)], type = "class")
     
@@ -77,7 +77,7 @@ best_accuracy <- res_hyperparameter_search$best_accuracy
 best_params <- res_hyperparameter_search$best_params   
 
 # Test
-test_accuracy <- test_nn(best_model, test_data, best_params$size, best_params$maxit)
+test_accuracy <- test_nn(best_model, test_data)
 
 
 

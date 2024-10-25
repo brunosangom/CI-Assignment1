@@ -88,16 +88,17 @@ training_sizes <- c(100, 1000, 10000)
 validation_size <- 1000
 test_size <- 1000
 
-for (noise_level in noise_levels) {
-  for (hardness in hardness_values) {
-    synthetic_data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
-    
-    plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
-        ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
-
-    print(plot)
+for (training_size in training_sizes){
+    for (noise_level in noise_levels) {
+        for (hardness in hardness_values) {
+            synthetic_data <- generate_synthetic_data(training_size, validation_size, test_size, noise_level, hardness)
+            plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
+            ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
+            print(plot)
   }
 }
+}
+
 ```
 
 ## Neural Network

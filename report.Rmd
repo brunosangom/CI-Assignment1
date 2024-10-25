@@ -82,22 +82,22 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
   )
 }
 
-hardness_values <- c(0.2, 1, 2)
-noise_levels <- c(0.2, 1, 2)
-training_sizes <- c(100, 1000, 10000)
-validation_size <- 1000
-test_size <- 1000
+# hardness_values <- c(0.2, 1, 2)
+# noise_levels <- c(0.2, 1, 2)
+# training_sizes <- c(100, 1000, 10000)
+# validation_size <- 1000
+# test_size <- 1000
 
-for (training_size in training_sizes){
-    for (noise_level in noise_levels) {
-        for (hardness in hardness_values) {
-            synthetic_data <- generate_synthetic_data(training_size, validation_size, test_size, noise_level, hardness)
-            plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
-            ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
-            print(plot)
-  }
-}
-}
+# for (training_size in training_sizes){
+#     for (noise_level in noise_levels) {
+#         for (hardness in hardness_values) {
+#             synthetic_data <- generate_synthetic_data(training_size, validation_size, test_size, noise_level, hardness)
+#             plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
+#             ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
+#             print(plot)
+#   }
+# }
+# }
 
 ```
 
@@ -107,7 +107,7 @@ for (training_size in training_sizes){
 
 library(nnet)
 
-train_nn <<- function(train_data, size = 1, maxit = 200, decay = 0.001) {
+train_bp <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
 
   train_data$y_train <- as.factor(train_data$y_train)
 
@@ -116,14 +116,16 @@ train_nn <<- function(train_data, size = 1, maxit = 200, decay = 0.001) {
                 size = size, 
                 maxit = maxit, 
                 decay = decay, 
-                linout = FALSE)
+                linout = FALSE, 
+                trace=FALSE
+                )
 
   return(model)
 }
 
-test_nn <<- function(best_model, test_data){
+test <- function(model, test_data){
 
-    y_pred = predict(best_model, newdata = test_data[, -ncol(test_data)], type = "class")
+    y_pred = predict(model, newdata = test_data[, -ncol(test_data)], type = "class")
 
     accuracy = accuracy <- mean(y_pred == test_data[, ncol(test_data)])
     
@@ -135,8 +137,136 @@ test_nn <<- function(best_model, test_data){
 
 ## Genetic Algorithm
 
+```{r}
 
+library(GA)
+
+
+train_ga <- function(train_data, size, maxit){
+    min_size <- 1
+    max_size <- 20
+    pcrossover <- 0.8
+    pmutation <- 0.1
+    popSize <- 50
+
+    n_params <- 5 * max_size + (max_size + 1) * 3
+
+    # Set lower and upper bounds for the weights
+    lower <- c(min_size, rep(-1, n_params))
+    upper <- c(max_size, rep(1, n_params))
+
+    # Set up GA parameters with filled lower and upper bounds
+    ga_model <- ga(
+        type = "real-valued",
+        fitness = fitness_function,
+        lower = lower,
+        upper = upper,
+        pcrossover = pcrossover,
+        pmutation = pmutation,
+        popSize = popSize,
+        maxiter = maxit,
+        run = 50
+)
+    # Retrieve optimized weights
+    # Returns all of the individuals that are tied for the best fitness score, we only keep the first
+    optimal_weights <- ga_model@solution[1, ]
+    optimal_accuracy <- 1 + ga_model@fitnessValue
+
+    optimal_size <- round(optimal_weights[1])
+
+    nn_model <- nnet(
+        y_train ~ ., 
+        data = train_data, 
+        size = optimal_size,
+        linout = FALSE,
+        maxit = 0,
+        decay = 0,
+        trace = FALSE
+    )
+
+    # Set weights of the neural network
+    nn_model$wts <- optimal_weights[-1]
+
+    return (nn_model)
+}
+
+
+fitness_function <- function(weights) {
+    # Instantiate the neural network with the number of neurons given by the first gene
+    size <- round(weights[1])
+    nn_model <- nnet(
+        y_train ~ ., 
+        data = train_data, 
+        size = size,
+        linout = FALSE,
+        maxit = 0,
+        decay = 0,
+        trace = FALSE
+    )
+
+    # Set weights of the neural network
+    nn_model$wts <- weights[-1]
+    
+    # Predict on training data
+    predictions <- predict(nn_model, as.matrix(train_data[, -ncol(train_data)]), type = "class")
+    
+    # Calculate misclassification error
+    error <- mean(predictions != train_data[, ncol(train_data)])
+    
+    # Return negative error to maximize fitness function
+    return(-error)
+}
+
+
+```
 ## Evolution Strategy
+```{r}
+
+library(cmaesr)
+
+train_es <- function(train_data, size, maxit){
+
+    min_size <- 1
+    max_size <- 20
+    sigma <- 0.5
+    popSize <- 50
+
+    n_params <- 5 * max_size + (max_size + 1) * 3
+
+    lower <- c(min_size, rep(-1, n_params))
+    upper <- c(max_size, rep(1, n_params))
+
+    obj.fn = makeSingleObjectiveFunction(
+    name = "Neural Network Fitness Function",
+    fn = function(x) -fitness_function(x),
+    par.set = makeNumericParamSet("weights", len = n_params + 1 , lower = lower, upper = upper)
+    )
+
+    # Initialize the ES model
+    es_model <- cmaes(
+        obj.fn, 
+        monitor = makeMonitor(),
+        control = list(
+            sigma = sigma, # initial step size
+            lambda = popSize, # number of offspring
+            stop.ons = c(
+                list(stopOnMaxIters(maxiter)), # stop after maxiter iterations
+                getDefaultStoppingConditions() # or after default stopping conditions
+            )
+        )
+    )
+
+    # Retrieve optimized weights
+    optimal_weights <- es_model$best.param
+
+    nn_model$wts <- optimal_weights[-1]
+
+    return (nn_model)
+
+
+}
+
+```
 
 
 ## Run
@@ -149,15 +279,15 @@ library(tictoc)
 
 hardness_values <- c(0.2, 1, 2)
 noise_levels <- c(0.2, 1, 2)
-training_sizes <- c(100, 1000, 10000)
+training_sizes <- c(100) # TODO ADD MORE
 validation_size <- 1000
 test_size <- 1000
 
 # ---------- RUN PARAMETERS ----------
 
 sizes <- c(1, 5, 10)
-maxits <- c(100, 200, 300) 
-training_functions  <- c("train_nn")
+maxit <- 200
+training_functions  <- c("train_bp", "train_ga", "train_es")
 
 
 # ---------- RESULT STRUCTURE ----------
@@ -187,8 +317,7 @@ for (hardness in hardness_values) {
       test_data <- data$test
 
       for (size in sizes) {
-        for (maxit in maxits) {
-          for (training_function in training_functions) {
+        for (training_function in training_functions) {
             
             # Retrieve the training function by name
             func <- get(training_function)
@@ -199,7 +328,7 @@ for (hardness in hardness_values) {
             training_time <- toc(quiet = TRUE)$toc 
             
             # Test accuracy
-            test_accuracy <- test_nn(model, test_data)
+            test_accuracy <- test(model, test_data)
             
             # Store result
             results <- rbind(results, data.frame(
@@ -217,7 +346,7 @@ for (hardness in hardness_values) {
       }
     }
   }
-}
+
 
 # Identify the fastest and most accurate runs
 fastest_run <- results[which.min(results$training_time), ]

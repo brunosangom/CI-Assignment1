@@ -1,24 +1,45 @@
 library(GA)
+library(nnet)
 source("synthetic_data_generation.r")
 
+n_train <- 100  
+n_val <- 1000   
+n_test <- 1000
+noise_level <- 0.3
+hardness <- 0.7
+min_size <- 1
+max_size <- 20
+pcrossover <- 0.8
+pmutation <- 0.1
+popSize <- 50
+maxiter <- 100
+
+n_params <- 5 * max_size + (max_size + 1) * 3
+
 # Generate synthetic data
-data <- generate_synthetic_data(n_train = 100, n_val = 30, n_test = 30, noise_level = 0.1, hardness = 0.5)
+data <- generate_synthetic_data(n_train, n_val, n_test, noise_level, hardness)
 train_data <- data$train
 val_data <- data$val
 
-# Define fitness function to minimize misclassification error
+# Define the fitness function to set weights and calculate misclassification error
 fitness_function <- function(weights) {
-    # Reshape weights into a 4x3 matrix, one column per class
-    weights_matrix <- matrix(weights, nrow = 4, ncol = 3)
+    # Instantiate the neural network with the number of neurons given by the first gene
+    size <- round(weights[1])
+    nn_model <- nnet(
+        y_train ~ ., 
+        data = train_data, 
+        size = size,
+        linout = FALSE,
+        maxit = 0,
+        decay = 0,
+        trace = FALSE
+    )
+
+    # Set weights of the neural network
+    nn_model$wts <- weights[-1]
     
-    # Convert feature columns to a numeric matrix
-    feature_matrix <- as.matrix(train_data[, -ncol(train_data)])
-    
-    # Calculate scores for each class
-    scores <- feature_matrix %*% weights_matrix  # Result: matrix with 3 columns (one per class)
-    
-    # Get predictions by finding the highest scoring class for each row
-    predictions <- apply(scores, 1, which.max) - 1
+    # Predict on training data
+    predictions <- predict(nn_model, as.matrix(train_data[, -ncol(train_data)]), type = "class")
     
     # Calculate misclassification error
     error <- mean(predictions != train_data[, ncol(train_data)])
@@ -27,9 +48,9 @@ fitness_function <- function(weights) {
     return(-error)
 }
 
-# Set lower and upper bounds for the weights (4x3 = 12 values)
-lower <- rep(-1, 12)
-upper <- rep(1, 12)
+# Set lower and upper bounds for the weights
+lower <- c(min_size, rep(-1, n_params))
+upper <- c(max_size, rep(1, n_params))
 
 # Set up GA parameters with filled lower and upper bounds
 ga_model <- ga(
@@ -37,13 +58,19 @@ ga_model <- ga(
     fitness = fitness_function,
     lower = lower,
     upper = upper,
-    popSize = 50,
-    maxiter = 100,
+    pcrossover = pcrossover,
+    pmutation = pmutation,
+    popSize = popSize,
+    maxiter = maxiter,
     run = 50
 )
 
 # Retrieve optimized weights
-optimal_weights <- ga_model@solution
+# Returns all of the individuals that are tied for the best fitness score, we only keep the first
+optimal_weights <- ga_model@solution[1, ]
+optimal_accuracy <- 1 + ga_model@fitnessValue
 
 # Print results
 cat("Optimal Weights Found by GA:", optimal_weights, "\n")
+cat("Number of Neurons of Optimal Weights Found by GA:", round(optimal_weights[1]), "\n")
+cat("Accuracy of Optimal Weights Found by GA:", optimal_accuracy, "\n")

@@ -103,11 +103,11 @@ for (training_size in training_sizes){
 
 ## Neural Network
 
-```{r
+```{r}
 
 library(nnet)
 
-train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
+train_nn <<- function(train_data, size = 1, maxit = 200, decay = 0.001) {
 
   train_data$y_train <- as.factor(train_data$y_train)
 
@@ -121,7 +121,7 @@ train_nn <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
   return(model)
 }
 
-test_nn <- function(best_model, test_data){
+test_nn <<- function(best_model, test_data){
 
     y_pred = predict(best_model, newdata = test_data[, -ncol(test_data)], type = "class")
 
@@ -130,8 +130,6 @@ test_nn <- function(best_model, test_data){
     cat(sprintf("Test Accuracy: %.4f\n", accuracy))
     
     return(accuracy)
-}
-
 }
 ```
 

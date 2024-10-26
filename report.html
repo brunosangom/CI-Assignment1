@@ -11,7 +11,7 @@
 
 <meta name="author" content="Bruno Sánchez and Sheena Lang" />
 
-<meta name="date" content="2024-10-25" />
+<meta name="date" content="2024-10-26" />
 
 <title>Computational Intelligence - Assignment 1</title>
 
@@ -353,7 +353,7 @@ display: none;
 <h1 class="title toc-ignore">Computational Intelligence - Assignment
 1</h1>
 <h4 class="author">Bruno Sánchez and Sheena Lang</h4>
-<h4 class="date">2024-10-25</h4>
+<h4 class="date">2024-10-26</h4>
 
 </div>
 
@@ -364,16 +364,13 @@ display: none;
 </div>
 <div id="data-collection" class="section level2">
 <h2>Data Collection</h2>
-<pre class="r"><code>library(MASS)  
-library(caret) </code></pre>
-<pre><code>## Loading required package: ggplot2</code></pre>
-<pre><code>## Loading required package: lattice</code></pre>
-<pre class="r"><code>library(lattice)
-library(GGally)</code></pre>
-<pre><code>## Registered S3 method overwritten by &#39;GGally&#39;:
-##   method from   
-##   +.gg   ggplot2</code></pre>
-<pre class="r"><code>generate_synthetic_data &lt;- function(n_train, n_val, n_test, noise_level = 0.1, hardness = 0.5) {
+<pre class="r"><code>suppressPackageStartupMessages(library(MASS))  
+suppressPackageStartupMessages(library(caret)) 
+suppressPackageStartupMessages(library(lattice))
+suppressPackageStartupMessages(library(GGally))
+
+
+generate_synthetic_data &lt;- function(n_train, n_val, n_test, noise_level = 0.1, hardness = 0.5) {
   set.seed(123)
   
   mu_setosa &lt;- c(5.01, 3.43, 1.46, 0.246)  
@@ -455,7 +452,7 @@ library(GGally)</code></pre>
 </div>
 <div id="neural-network" class="section level2">
 <h2>Neural Network</h2>
-<pre class="r"><code>library(nnet)
+<pre class="r"><code>suppressPackageStartupMessages(library(nnet))
 
 train_bp &lt;- function(train_data, size = 1, maxit = 200, decay = 0.001) {
 
@@ -479,26 +476,19 @@ test &lt;- function(model, test_data){
 
     accuracy = accuracy &lt;- mean(y_pred == test_data[, ncol(test_data)])
     
-    cat(sprintf(&quot;Test Accuracy: %.4f\n&quot;, accuracy))
+    # cat(sprintf(&quot;Test Accuracy: %.4f\n&quot;, accuracy))
     
     return(accuracy)
 }</code></pre>
 </div>
 <div id="genetic-algorithm" class="section level2">
 <h2>Genetic Algorithm</h2>
-<pre class="r"><code>library(GA)</code></pre>
-<pre><code>## Loading required package: foreach</code></pre>
-<pre><code>## Loading required package: iterators</code></pre>
-<pre><code>## Package &#39;GA&#39; version 3.2.4
-## Type &#39;citation(&quot;GA&quot;)&#39; for citing this R package in publications.</code></pre>
-<pre><code>## 
-## Attaching package: &#39;GA&#39;</code></pre>
-<pre><code>## The following object is masked from &#39;package:utils&#39;:
-## 
-##     de</code></pre>
-<pre class="r"><code>train_ga &lt;- function(train_data, size, maxit){
+<pre class="r"><code>suppressPackageStartupMessages(library(GA))
+
+
+train_ga &lt;- function(train_data, size, maxit){
     min_size &lt;- 1
-    max_size &lt;- 20
+    max_size &lt;- size
     pcrossover &lt;- 0.8
     pmutation &lt;- 0.1
     popSize &lt;- 50
@@ -519,15 +509,14 @@ test &lt;- function(model, test_data){
         pmutation = pmutation,
         popSize = popSize,
         maxiter = maxit,
-        run = 50
+        run = 50,
+        monitor = FALSE
 )
     # Retrieve optimized weights
     # Returns all of the individuals that are tied for the best fitness score, we only keep the first
     optimal_weights &lt;- ga_model@solution[1, ]
-    optimal_accuracy &lt;- 1 + ga_model@fitnessValue
 
     optimal_size &lt;- round(optimal_weights[1])
-
     nn_model &lt;- nnet(
         y_train ~ ., 
         data = train_data, 
@@ -538,8 +527,10 @@ test &lt;- function(model, test_data){
         trace = FALSE
     )
 
+    optimal_n_params &lt;- 5 * optimal_size + (optimal_size + 1) * 3
+
     # Set weights of the neural network
-    nn_model$wts &lt;- optimal_weights[-1]
+    nn_model$wts &lt;- optimal_weights[2:(optimal_n_params + 1)]
 
     return (nn_model)
 }
@@ -573,52 +564,61 @@ fitness_function &lt;- function(weights) {
 </div>
 <div id="evolution-strategy" class="section level2">
 <h2>Evolution Strategy</h2>
-<pre class="r"><code>library(cmaesr)</code></pre>
-<pre><code>## Loading required package: ParamHelpers</code></pre>
-<pre><code>## Loading required package: BBmisc</code></pre>
-<pre><code>## 
-## Attaching package: &#39;BBmisc&#39;</code></pre>
-<pre><code>## The following object is masked from &#39;package:base&#39;:
-## 
-##     isFALSE</code></pre>
-<pre><code>## Loading required package: checkmate</code></pre>
-<pre><code>## Loading required package: smoof</code></pre>
-<pre class="r"><code>train_es &lt;- function(train_data, size, maxit){
+<pre class="r"><code>suppressPackageStartupMessages(library(cmaesr))
+
+train_es &lt;- function(train_data, size, maxit){
 
     min_size &lt;- 1
-    max_size &lt;- 20
+    max_size &lt;- size
     sigma &lt;- 0.5
     popSize &lt;- 50
 
     n_params &lt;- 5 * max_size + (max_size + 1) * 3
 
     lower &lt;- c(min_size, rep(-1, n_params))
-    upper &lt;- c(max_size, rep(1, n_params))
+    upper &lt;- c(max_size+1, rep(1, n_params))
 
     obj.fn = makeSingleObjectiveFunction(
-    name = &quot;Neural Network Fitness Function&quot;,
-    fn = function(x) -fitness_function(x),
-    par.set = makeNumericParamSet(&quot;weights&quot;, len = n_params + 1 , lower = lower, upper = upper)
+        name = &quot;Neural Network Fitness Function&quot;,
+        fn = function(x) -fitness_function(x), # ES minimizes objective function
+        par.set = makeNumericParamSet(&quot;weights&quot;, len = n_params + 1 , lower = lower, upper = upper)
     )
-
-    # Initialize the ES model
-    es_model &lt;- cmaes(
-        obj.fn, 
+    
+    # Run the ES model
+    suppressWarnings(
+      es_model &lt;- cmaes(
+        obj.fn,
         monitor = makeMonitor(),
         control = list(
-            sigma = sigma, # initial step size
-            lambda = popSize, # number of offspring
-            stop.ons = c(
-                list(stopOnMaxIters(maxiter)), # stop after maxiter iterations
-                getDefaultStoppingConditions() # or after default stopping conditions
-            )
+          sigma = sigma, # initial step size
+          lambda = popSize, # number of offspring
+          stop.ons = c(
+            list(stopOnMaxIters(maxit)), # stop after maxit iterations
+            getDefaultStoppingConditions() # or after default stopping conditions
+          )
         )
+      )
     )
 
     # Retrieve optimized weights
     optimal_weights &lt;- es_model$best.param
 
-    nn_model$wts &lt;- optimal_weights[-1]
+    optimal_size &lt;- round(optimal_weights[1])
+    
+    nn_model &lt;- nnet(
+        y_train ~ ., 
+        data = train_data, 
+        size = optimal_size,
+        linout = FALSE,
+        maxit = 0,
+        decay = 0,
+        trace = FALSE
+    )
+
+    optimal_n_params &lt;- 5 * optimal_size + (optimal_size + 1) * 3
+
+    # Set weights of the neural network
+    nn_model$wts &lt;- optimal_weights[2:(optimal_n_params + 1)]
 
     return (nn_model)
 
@@ -627,21 +627,21 @@ fitness_function &lt;- function(weights) {
 </div>
 <div id="run" class="section level2">
 <h2>Run</h2>
-<pre class="r"><code>library(tictoc)
+<pre class="r"><code>suppressPackageStartupMessages(library(tictoc))
 
 # ---------- DATA PARAMETERS ----------
 
-hardness_values &lt;- c(0.2, 1, 2)
-noise_levels &lt;- c(0.2, 1, 2)
-training_sizes &lt;- c(100) # TODO ADD MORE
+hardness_values &lt;- c(0.2, 2)
+noise_levels &lt;- c(0.2, 2)
+training_sizes &lt;- c(100, 500) # TODO ADD MORE
 validation_size &lt;- 1000
 test_size &lt;- 1000
 
 # ---------- RUN PARAMETERS ----------
 
-sizes &lt;- c(1, 5, 10)
+sizes &lt;- c(1, 10, 20)
 maxit &lt;- 200
-training_functions  &lt;- c(&quot;train_bp&quot;, &quot;train_ga&quot;)
+training_functions  &lt;- c(&quot;train_bp&quot;, &quot;train_ga&quot;, &quot;train_es&quot;)
 
 
 # ---------- RESULT STRUCTURE ----------
@@ -679,7 +679,7 @@ for (hardness in hardness_values) {
             # Measure training time using tic and toc
             tic() 
             model &lt;- func(train_data, size, maxit)
-            training_time &lt;- toc(quiet = TRUE)$toc 
+            training_time &lt;- toc(quiet = TRUE)$toc
             
             # Test accuracy
             test_accuracy &lt;- test(model, test_data)
@@ -699,83 +699,55 @@ for (hardness in hardness_values) {
         }
       }
     }
-  }</code></pre>
-<pre><code>## Test Accuracy: 0.9730
-## Test Accuracy: 0.8358
-## Test Accuracy: 0.9489
-## Test Accuracy: 0.9740
-## Test Accuracy: 0.9349
-## Test Accuracy: 0.9389
-## Test Accuracy: 0.8178
-## Test Accuracy: 0.7287
-## Test Accuracy: 0.7117
-## Test Accuracy: 0.6486
-## Test Accuracy: 0.7397
-## Test Accuracy: 0.6496
-## Test Accuracy: 0.6486
-## Test Accuracy: 0.5536
-## Test Accuracy: 0.5646
-## Test Accuracy: 0.5666
-## Test Accuracy: 0.5225
-## Test Accuracy: 0.5716
-## Test Accuracy: 0.9960
-## Test Accuracy: 0.6667
-## Test Accuracy: 0.9990
-## Test Accuracy: 0.9620
-## Test Accuracy: 1.0000
-## Test Accuracy: 0.9429
-## Test Accuracy: 0.9189
-## Test Accuracy: 0.6627
-## Test Accuracy: 0.8699
-## Test Accuracy: 0.7367
-## Test Accuracy: 0.8278
-## Test Accuracy: 0.6657
-## Test Accuracy: 0.7688
-## Test Accuracy: 0.5996
-## Test Accuracy: 0.6897
-## Test Accuracy: 0.6436
-## Test Accuracy: 0.6657
-## Test Accuracy: 0.6897
-## Test Accuracy: 1.0000
-## Test Accuracy: 0.9990
-## Test Accuracy: 1.0000
-## Test Accuracy: 0.9740
-## Test Accuracy: 1.0000
-## Test Accuracy: 0.9970
-## Test Accuracy: 0.9820
-## Test Accuracy: 0.8398
-## Test Accuracy: 0.9510
-## Test Accuracy: 0.7828
-## Test Accuracy: 0.9399
-## Test Accuracy: 0.8488
-## Test Accuracy: 0.8819
-## Test Accuracy: 0.6627
-## Test Accuracy: 0.8338
-## Test Accuracy: 0.6607
-## Test Accuracy: 0.7858
-## Test Accuracy: 0.6466</code></pre>
-<pre class="r"><code># Identify the fastest and most accurate runs
-fastest_run &lt;- results[which.min(results$training_time), ]
-most_accurate_run &lt;- results[which.max(results$test_accuracy), ]
+  }
 
-# Print results
-print(&quot;Fastest Run:&quot;)</code></pre>
-<pre><code>## [1] &quot;Fastest Run:&quot;</code></pre>
-<pre class="r"><code>print(fastest_run)</code></pre>
-<pre><code>##         hardness noise training_size size maxit training_function test_accuracy
-## elapsed      0.2   0.2           100    1   200          train_bp      0.972973
-##         training_time
-## elapsed         1.663</code></pre>
-<pre class="r"><code>print(&quot;Most Accurate Run:&quot;)</code></pre>
-<pre><code>## [1] &quot;Most Accurate Run:&quot;</code></pre>
-<pre class="r"><code>print(most_accurate_run)</code></pre>
-<pre><code>##           hardness noise training_size size maxit training_function
-## elapsed22        1   0.2           100   10   200          train_bp
-##           test_accuracy training_time
-## elapsed22             1        28.094</code></pre>
+write.csv(results, &quot;results.csv&quot;, row.names = FALSE)</code></pre>
 </div>
 <div id="evaluation-results" class="section level2">
 <h2>Evaluation &amp; results</h2>
+<pre class="r"><code>suppressPackageStartupMessages(library(dplyr))
+
+results &lt;- read.csv(&quot;results.csv&quot;)
+
+# Identify the fastest and most accurate runs
+fastest_run &lt;- results[which.min(results$training_time), ]
+most_accurate_run &lt;- results[which.max(results$test_accuracy), ]
+
+# Fastest run per training size
+fastest_runs &lt;- results %&gt;%
+  group_by(training_size) %&gt;%
+  filter(training_time == min(training_time)) %&gt;%
+  ungroup()
+
+# Most accurate run per hardness and noise
+most_accurate_runs &lt;- results %&gt;%
+  group_by(hardness, noise) %&gt;%
+  filter(test_accuracy == max(test_accuracy)) %&gt;%
+  ungroup()
+
+# Fastest Runs per Training Size:
+print(fastest_runs)</code></pre>
+<pre><code>## # A tibble: 2 × 8
+##   hardness noise training_size  size maxit training_function test_accuracy
+##      &lt;dbl&gt; &lt;dbl&gt;         &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;chr&gt;                     &lt;dbl&gt;
+## 1      0.2   0.2           100     1   200 train_bp                  0.973
+## 2      0.2   0.2           500     1   200 train_bp                  0.249
+## # ℹ 1 more variable: training_time &lt;dbl&gt;</code></pre>
+<pre class="r"><code># Most Accurate Runs per Hardness and Noise:
+print(most_accurate_runs)</code></pre>
+<pre><code>## # A tibble: 9 × 8
+##   hardness noise training_size  size maxit training_function test_accuracy
+##      &lt;dbl&gt; &lt;dbl&gt;         &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;chr&gt;                     &lt;dbl&gt;
+## 1      0.2   0.2           500     1   200 train_es                  0.974
+## 2      0.2   2             100     1   200 train_bp                  0.652
+## 3      2     0.2           100     1   200 train_bp                  1    
+## 4      2     0.2           100    10   200 train_bp                  1    
+## 5      2     0.2           100    20   200 train_bp                  1    
+## 6      2     0.2           500     1   200 train_bp                  1    
+## 7      2     0.2           500    10   200 train_es                  1    
+## 8      2     0.2           500    20   200 train_es                  1    
+## 9      2     2             500     1   200 train_bp                  0.899
+## # ℹ 1 more variable: training_time &lt;dbl&gt;</code></pre>
 </div>
 
 

@@ -6,10 +6,10 @@ source("synthetic_data_generation.r")
 n_train <- 100  
 n_val <- 1000   
 n_test <- 1000
-noise_level <- 0.3
-hardness <- 0.7
+noise_level <- 0.2
+hardness <- 0.2
 min_size <- 1
-max_size <- 20
+max_size <- 1
 sigma <- 0.5
 popSize <- 50
 maxiter <- 100
@@ -45,16 +45,16 @@ fitness_function <- function(weights) {
     error <- mean(predictions != train_data[, ncol(train_data)])
     
     # Return negative error to maximize fitness function
-    return(error)
+    return(-error)
 }
 
 # Set initial mean and bounds for the weights
 lower <- c(min_size, rep(-1, n_params))
-upper <- c(max_size, rep(1, n_params))
+upper <- c(max_size+1, rep(1, n_params))
 
 obj.fn = makeSingleObjectiveFunction(
   name = "Neural Network Fitness Function",
-  fn = fitness_function,
+  fn = function(x) -fitness_function(x),
   par.set = makeNumericParamSet("weights", len = n_params + 1 , lower = lower, upper = upper)
 )
 
@@ -75,8 +75,9 @@ es_model <- cmaes(
 # Retrieve optimized weights and accuracy
 optimal_weights <- es_model$best.param
 optimal_accuracy <- 1 - es_model$best.fitness
+optimal_size <- round(optimal_weights[1])
 
 # Print results
 cat("Optimal Weights Found by CMA-ES:", optimal_weights, "\n")
-cat("Number of Neurons of Optimal Weights Found by CMA-ES:", round(optimal_weights[1]), "\n")
+cat("Number of Neurons of Optimal Weights Found by CMA-ES:", optimal_size, "\n")
 cat("Accuracy of Optimal Weights Found by CMA-ES:", optimal_accuracy, "\n")

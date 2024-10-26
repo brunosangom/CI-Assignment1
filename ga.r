@@ -5,10 +5,10 @@ source("synthetic_data_generation.r")
 n_train <- 100  
 n_val <- 1000   
 n_test <- 1000
-noise_level <- 0.3
-hardness <- 0.7
+noise_level <- 0.2
+hardness <- 0.2
 min_size <- 1
-max_size <- 20
+max_size <- 1
 pcrossover <- 0.8
 pmutation <- 0.1
 popSize <- 50
@@ -69,8 +69,26 @@ ga_model <- ga(
 # Returns all of the individuals that are tied for the best fitness score, we only keep the first
 optimal_weights <- ga_model@solution[1, ]
 optimal_accuracy <- 1 + ga_model@fitnessValue
+optimal_size <- round(optimal_weights[1])
+
+nn_model <- nnet(
+    y_train ~ .,
+    data = train_data,
+    size = optimal_size,
+    linout = FALSE,
+    maxit = 0,
+    decay = 0,
+    trace = FALSE
+)
+
+optimal_n_params <- 5 * optimal_size + (optimal_size + 1) * 3
+
+# Set weights of the neural network
+nn_model$wts <- optimal_weights[2:(optimal_n_params + 1)]
 
 # Print results
 cat("Optimal Weights Found by GA:", optimal_weights, "\n")
-cat("Number of Neurons of Optimal Weights Found by GA:", round(optimal_weights[1]), "\n")
+cat("Number of Neurons of Optimal Weights Found by GA:", optimal_size, "\n")
 cat("Accuracy of Optimal Weights Found by GA:", optimal_accuracy, "\n")
+cat("Weights of Optimal Neural Network Found by GA:", nn_model$wts, "\n")
+

@@ -8,24 +8,38 @@ output: html_document
 ## Introduction
 
 This report describes our experiment in training a neural network (NN) using backpropagation, genetic algorithms (GA), and evolutionary strategies (ES), and evaluating these methods on the testing dataset.
+
 We begin by outlining the data collection process, using synthetic data generation based on the real Iris dataset.
+
 Next, we detail each of the three training approaches (backpropagation, GA, and ES) and conduct a hyperparameter search for GA and ES.
+
 Finally, we assess the accuracy and training time of these methods under different synthetic data conditions (hardness, noise, and training size) and present a statistical analysis of the results to identify any significant differences.
 
 ## Data Collection
-- We want to base our synthetic data on the Iris Dataset while still having the flexibility of controllling hardness etc. 
+
+We aim to generate synthetic data based on the Iris dataset, a widely used benchmark in machine learning, to maintain a connection to a real-world problem while still allowing for flexibility. 
+
+By creating synthetic data instead of using the original Iris dataset, we can control the hardness of the classification task and adjust the level of noise, enabling a more flexible experimental setup.
 
 ### Analysis Iris Dataset
-- What dataset is that
-- Means covariances of the classes
+
+The Iris dataset consists of flower samples from three different species: Setosa, Versicolor, and Virginica. Each sample includes measurements of four features: sepal length, sepal width, petal length, and petal width.
+
+To ensure that our synthetic data accurately simulates Iris samples, we first perform a preliminary analysis to calculate the feature means and covariances for each of the three species.
+
+The following code chunk calculates and displays these statistics:
 
 ### Synthetic Data Generation
-- Use data from previous section
-- Explain parameters
-  - How hardness controls data
-  - How noise controls data
-  - How number of training samples controls
 
+By using the means and covariances of the three flower species, we generate synthetic samples by drawing data points from distributions defined by these statistical properties.
+
+To introduce flexibility, we add parameters to control two aspects: *hardness* and *noise* of the data.
+
+- *Hardness* controls the separation between species, with higher values making the classification task easier. Increasing hardness involves expanding the distance between the species’ feature distributions, making them more distinct and easier to classify.
+
+- *Noise* adds random variation to the data, making the classification task more challenging. A higher noise parameter increases overlap between the species’ distributions by introducing variability to feature values. This reduces the distinctiveness of the species and makes it harder for the model to classify them correctly.
+
+These parameters allow us to simulate a range of classification challenges, from well-separated species with minimal noise (easy classification) to highly overlapping distributions with high noise (difficult classification).
 
 
 ```{r}

@@ -13,8 +13,35 @@ This is an example of R Markdown.
 - We want to base our synthetic data on the Iris Dataset while still having the flexibility of controllling hardness etc. 
 
 ### Analysis Iris Dataset
-- What dataset is that
-- Means covariances of the classes
+We want to generate our synthetic data based on the Iris dataset, commonly used for machine learning experiments, so that it still has a connection to a real world problem, despite being synthetic.
+The purpose of generating this data instead of using the Iris dataset itself is so that we can be in control of the hardness of the classification problem and the amount of noise present.
+
+The Iris dataset describes flower samples taken from 3 different species: setosa, versicolor and virginica. For each sample, 4 features are measured: sepal length and width, and petal length and width.
+In order for our synthetic data to simulate Iris samples, we first need to perform a preliminary study on the feature means and covariances for each of the 3 flower species.
+
+These statistics are calculated and displayed in the following code chunk:
+
+```{r}
+
+suppressPackageStartupMessages(library(dplyr))
+
+data <- iris
+
+print(
+    data %>%
+    group_by(Species) %>%
+    summarise(across(where(is.numeric), mean))    
+)
+
+cov_matrices <- data %>%
+    group_by(Species) %>%
+    summarise(cov_matrix = list(cov(select(cur_data(), where(is.numeric))))) %>%
+    pull(cov_matrix)
+
+names(cov_matrices) <- unique(data$Species)
+print(cov_matrices)
+
+```
 
 ### Synthetic Data Generation
 - Use data from previous section
@@ -96,12 +123,14 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
   )
 }
 
-# hardness_values <- c(0.2, 1, 2)
-# noise_levels <- c(0.2, 1, 2)
-# training_sizes <- c(100, 1000, 10000)
+# ---------- DATA PARAMETERS ----------
+
+# hardness_values <- c(0.2, 2)
+# noise_levels <- c(0.2, 2)
+# training_sizes <- c(100, 500)
 # validation_size <- 1000
 # test_size <- 1000
-
+ 
 # for (training_size in training_sizes){
 #     for (noise_level in noise_levels) {
 #         for (hardness in hardness_values) {
@@ -152,8 +181,17 @@ test <- function(model, test_data){
 ```
 
 ## Genetic Algorithm
-- Explain how it was implemented
+In this section, we set up the iterative process of training a neural network using a Genetic Algorithm (GA) instead of back-propagation, through the use of the *GA* library.
+In order to do this, we iteratively evaluate candidate neural networks (out of a population) according their classification performance on the training data.
+Additionally, we include as an evolvable parameter the number of neurons of the neural network, limited by a maximum size (for which we will later evaluate different values).
 
+The training process of the Neural Network with the Genetic Algorithm is as follows:
+1. Generate a population where each individual has a random number of neurons (an integer between 1 and the maximum size) and a random sets of weights (each a real number between -1 and 1).
+2. For each individual of the population, build a neural network with the corresponding number of neurons and set of weights. This is a candidate neural network.
+3. With each candidate neural network, make predictions on the training set and, since GAs maximize the fitness function, return the opposite of the misclassification error as its fitness score.
+4. Once the GA is finished, extract the individual with the best fitness and return the neural network associated with it.
+
+This process is implemented in the following code:
 
 ```{r}
 
@@ -297,7 +335,10 @@ best_pop_size_ga <- best_result$best_params$popSize
 
 
 ## Evolution Strategy
-- Explain how it was implemented
+In this section, we set up the iterative process of training a neural network using an Evolutionary Strategy (ES) instead of back-propagation, employing the *cmaesr* library.
+This process is essentially the same as the one we perform with the Genetic Algorithm, with some key changes:
+- We employ an ES instead of a GA for the evolution of the population. In addition to adapting the candidate neural networks, an ES also evolves the mutation parameters themselves separately for each individual.
+- An ES minimizes the objective function, so we utilize the opposite of the previous GA fitness function as objective (i.e. the misclassification error). 
 
 ```{r}
 
@@ -502,20 +543,14 @@ write.csv(results, "results.csv", row.names = FALSE)
 ```
 
 ## Results
+In this section, we observe and analyze the results attained in the previous experiment.
 
 ### Results Overview
-
-### Statistical Analysis
+We first perform a preliminary observation of the results. We extract the fastest run per training size, and the most accurate run per hardness and noise values.
 
 ```{r}
 
-suppressPackageStartupMessages(library(dplyr))
-
 results <- read.csv("results.csv")
-
-# Identify the fastest and most accurate runs
-fastest_run <- results[which.min(results$training_time), ]
-most_accurate_run <- results[which.max(results$test_accuracy), ]
 
 # Fastest run per training size
 fastest_runs <- results %>%
@@ -523,11 +558,16 @@ fastest_runs <- results %>%
   filter(training_time == min(training_time)) %>%
   ungroup()
 
+fastest_runs <- fastest_runs %>% select(-test_accuracy)
+
+
 # Most accurate run per hardness and noise
 most_accurate_runs <- results %>%
   group_by(hardness, noise) %>%
   filter(test_accuracy == max(test_accuracy)) %>%
   ungroup()
+
+most_accurate_runs <- most_accurate_runs %>% select(-training_time)
 
 # Fastest Runs per Training Size:
 print(fastest_runs)
@@ -535,9 +575,314 @@ print(fastest_runs)
 # Most Accurate Runs per Hardness and Noise:
 print(most_accurate_runs)
 
+```
+
+First, we see that the BP method seems to achieve the best training times for both training sizes; with an expected significant increase in time between the 2 sets.
+
+Then, we observe that:
+- For the data that most resembles the original Iris dataset (low hardness and noise values), the ES achieves the best accuracy score (0.974).
+- For the hardest dataset configuration (low hardness and high noise), the highest accuracy score (0.652) is very moderate, and achieved by BP.
+- For the easiest configuration (high hardness, low noise), several models achieve a perfect accuracy score of 1, since the data is easily separable.
+- For the final configuration (high hardness and noise), the BP again gets the best score (0.899), with only 1 neuron.
+
+### Statistical Analysis
+Let us now perform an statistical analysis on the results obtained for the different training methods.
+The goal of this analysis is to find statistically significant differences among the accuracy scores and times of the 3 training methods.
+
+```{r, echo = FALSE}
+
+# Load required libraries
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(car))
+suppressPackageStartupMessages(library(FSA))
+suppressPackageStartupMessages(library(rstatix))
+suppressPackageStartupMessages(library(PMCMRplus))
+
+# Function to write to file with console mirroring
+write_and_print <- function(text, file_conn) {
+  cat(text)
+  cat(text, file = file_conn, append = TRUE)
+}
+
+# Start analysis and create output file
+analyze_and_report <- function(alpha = 0.15) {  # Added alpha parameter with default value
+  # Create output file
+  output_file <- "statistical_analysis_report.txt"
+  file_conn <- file(output_file, "w")
+  
+  write_and_print("Statistical Analysis Report for Training Functions\n", file_conn)
+  write_and_print("==============================================\n\n", file_conn)
+  write_and_print(sprintf("Using significance level (alpha) = %.3f\n\n", alpha), file_conn)
+  
+  # Read the data
+  data <- read_csv("results.csv", show_col_types = FALSE)
+  data$training_function <- factor(data$training_function)
+  
+  # Function to check assumptions and write explanation
+  check_assumptions <- function(data, dv) {
+    write_and_print(sprintf("\nChecking Statistical Assumptions for %s\n", dv), file_conn)
+    write_and_print("----------------------------------------\n", file_conn)
+    
+    # Shapiro-Wilk test explanation
+    write_and_print("\nPerforming Shapiro-Wilk test for normality:\n", file_conn)
+    write_and_print("H0: Data is normally distributed\n", file_conn)
+    write_and_print("H1: Data is not normally distributed\n\n", file_conn)
+    
+    normal_tests <- data %>%
+      group_by(training_function) %>%
+      summarise(
+        shapiro_stat = shapiro.test(get(dv))$statistic,
+        shapiro_p = shapiro.test(get(dv))$p.value
+      )
+    
+    print(normal_tests)
+    capture.output(print(normal_tests), file = file_conn, append = TRUE)
+    
+    # Interpret normality results
+    write_and_print("\nNormality Test Interpretation:\n", file_conn)
+    for(i in 1:nrow(normal_tests)) {
+      result_text <- sprintf("- %s: %s (p = %.4f)\n",
+                           normal_tests$training_function[i],
+                           ifelse(normal_tests$shapiro_p[i] >= alpha, 
+                                  "Normally distributed",
+                                  "Not normally distributed"),
+                           normal_tests$shapiro_p[i])
+      write_and_print(result_text, file_conn)
+    }
+    
+    # Levene's test explanation and execution
+    write_and_print("\nPerforming Levene's test for homogeneity of variance:\n", file_conn)
+    write_and_print("H0: Variances are equal across groups\n", file_conn)
+    write_and_print("H1: Variances are not equal across groups\n\n", file_conn)
+    
+    levene_test <- leveneTest(as.formula(paste(dv, "~ training_function")), data = data)
+    print(levene_test)
+    capture.output(print(levene_test), file = file_conn, append = TRUE)
+    
+    # Interpret Levene's test
+    levene_p <- levene_test$`Pr(>F)`[1]
+    result_text <- sprintf("\nVariance Test Interpretation: %s (p = %.4f)\n",
+                         ifelse(levene_p >= alpha,
+                                "Equal variances across groups",
+                                "Unequal variances across groups"),
+                         levene_p)
+    write_and_print(result_text, file_conn)
+    
+    # Return whether parametric tests are appropriate
+    all_normal <- all(normal_tests$shapiro_p >= alpha)
+    vars_homogeneous <- levene_p >= alpha
+    
+    write_and_print(sprintf("\nBased on these results, %s tests will be used.\n",
+                          ifelse(all_normal && vars_homogeneous,
+                                 "parametric",
+                                 "non-parametric")), file_conn)
+    
+    return(all_normal && vars_homogeneous)
+  }
+  
+  # Function to analyze a variable
+  analyze_variable <- function(data, dv) {
+    write_and_print(sprintf("\n\nAnalysis of %s\n", dv), file_conn)
+    write_and_print("======================\n", file_conn)
+    
+    use_parametric <- check_assumptions(data, dv)
+    
+    if(use_parametric) {
+      # ANOVA
+      write_and_print("\nPerforming One-way ANOVA:\n", file_conn)
+      write_and_print("H0: All group means are equal\n", file_conn)
+      write_and_print("H1: At least one group mean is different\n\n", file_conn)
+      
+      aov_result <- aov(as.formula(paste(dv, "~ training_function")), data = data)
+      print(summary(aov_result))
+      capture.output(print(summary(aov_result)), file = file_conn, append = TRUE)
+      
+      # Interpret ANOVA
+      aov_p <- summary(aov_result)[[1]]["training_function", "Pr(>F)"]
+      result_text <- sprintf("\nANOVA Interpretation: %s (p = %.4f)\n",
+                           ifelse(aov_p < alpha,
+                                  "There are significant differences between groups",
+                                  "No significant differences between groups"),
+                           aov_p)
+      write_and_print(result_text, file_conn)
+      
+      # Post-hoc tests
+      if(aov_p < alpha) {
+        write_and_print("\nPerforming Tukey's HSD test for pairwise comparisons:\n", file_conn)
+        tukey_result <- TukeyHSD(aov_result)
+        print(tukey_result)
+        capture.output(print(tukey_result), file = file_conn, append = TRUE)
+      }
+      
+    } else {
+      # Kruskal-Wallis
+      write_and_print("\nPerforming Kruskal-Wallis test:\n", file_conn)
+      write_and_print("H0: All groups have the same distribution\n", file_conn)
+      write_and_print("H1: At least one group has a different distribution\n\n", file_conn)
+      
+      kw_result <- kruskal.test(as.formula(paste(dv, "~ training_function")), data = data)
+      print(kw_result)
+      capture.output(print(kw_result), file = file_conn, append = TRUE)
+      
+      # Interpret Kruskal-Wallis
+      result_text <- sprintf("\nKruskal-Wallis Test Interpretation: %s (p = %.4f)\n",
+                           ifelse(kw_result$p.value < alpha,
+                                  "There are significant differences between groups",
+                                  "No significant differences between groups"),
+                           kw_result$p.value)
+      write_and_print(result_text, file_conn)
+      
+      # Post-hoc tests if significant
+      if(kw_result$p.value < alpha) {
+                write_and_print("\nPerforming Dunn's test for pairwise comparisons:\n", file_conn)
+        write_and_print("H0: No difference between the pair of groups\n", file_conn)
+        write_and_print("H1: Significant difference exists between the pair of groups\n\n", file_conn)
+        
+        dunn_result <- dunnTest(as.formula(paste(dv, "~ training_function")), 
+                               data = data,
+                               method = "bh")  # Using Benjamini-Hochberg adjustment
+        print(dunn_result)
+        capture.output(print(dunn_result), file = file_conn, append = TRUE)
+
+        # Add interpretation of Dunn's test results
+        write_and_print("\nDunn's Test Interpretation:\n", file_conn)
+        write_and_print("-------------------------\n", file_conn)
+        
+        # Extract comparisons and p-values
+        comparisons <- dunn_result$res
+        
+        # Sort by p-value for clearer presentation
+        comparisons <- comparisons[order(comparisons$P.adj), ]
+        
+        for (i in 1:nrow(comparisons)) {
+            comparison <- comparisons[i, ]
+            sig_status <- if (comparison$P.adj < alpha) {
+                "Significant difference"
+            } else {
+                "No significant difference"
+            }
+
+            # Properly parse the comparison string
+            groups <- strsplit(as.character(comparison$Comparison), " - ")[[1]]
+            group1 <- groups[1]
+            group2 <- groups[2]
+
+            # Calculate means with proper error handling
+            mean1 <- tryCatch(
+                {
+                    mean(data[[dv]][data$training_function == group1], na.rm = TRUE)
+                },
+                error = function(e) NA
+            )
+
+            mean2 <- tryCatch(
+                {
+                    mean(data[[dv]][data$training_function == group2], na.rm = TRUE)
+                },
+                error = function(e) NA
+            )
+
+            # Determine which group performed better with NA handling
+            better_group <- if (is.na(mean1) || is.na(mean2)) {
+                "Unable to determine performance difference"
+            } else if (mean1 > mean2) {
+                sprintf(
+                    "%s (%.3f) performed better than %s (%.3f)",
+                    group1, mean1, group2, mean2
+                )
+            } else if (mean2 > mean1) {
+                sprintf(
+                    "%s (%.3f) performed better than %s (%.3f)",
+                    group2, mean2, group1, mean1
+                )
+            } else {
+                sprintf(
+                    "%s and %s performed equally (%.3f)",
+                    group1, group2, mean1
+                )
+            }
+
+            result_text <- sprintf(
+                "- %s vs %s: %s (p = %.4f)\n  %s\n",
+                group1, group2,
+                sig_status,
+                comparison$P.adj,
+                better_group
+            )
+            write_and_print(result_text, file_conn)
+        }
+        
+        # Add overall summary of significant differences
+        sig_pairs <- sum(comparisons$P.adj < alpha)
+        total_pairs <- nrow(comparisons)
+        write_and_print(sprintf("\nSummary: Found significant differences in %d out of %d comparisons.\n",
+                              sig_pairs, total_pairs), file_conn)
+      }
+    }
+  }
+  
+  # Perform analyses
+  analyze_variable(data, "test_accuracy")
+  analyze_variable(data, "training_time")
+  
+  # Summary statistics
+  write_and_print("\n\nSummary Statistics\n", file_conn)
+  write_and_print("=================\n", file_conn)
+  
+  summary_stats <- data %>%
+    group_by(training_function) %>%
+    summarise(
+      n = n(),
+      mean_accuracy = mean(test_accuracy),
+      sd_accuracy = sd(test_accuracy),
+      mean_time = mean(training_time),
+      sd_time = sd(training_time)
+    )
+  print(summary_stats)
+  capture.output(print(summary_stats), file = file_conn, append = TRUE)
+
+  write_and_print("\n\nAverage Test Accuracy:\n", file_conn)
+  
+  acc_means <- summary_stats$mean_accuracy
+  names(acc_means) <- summary_stats$training_function
+  best_acc <- names(which.max(acc_means))
+  worst_acc <- names(which.min(acc_means))
+  
+  write_and_print(sprintf("- Best performing method: %s (%.3f)\n", 
+                        best_acc, max(acc_means)), file_conn)
+  write_and_print(sprintf("- Worst performing method: %s (%.3f)\n", 
+                        worst_acc, min(acc_means)), file_conn)
+  
+  write_and_print("\nAverage Training Time:\n", file_conn)
+  time_means <- summary_stats$mean_time
+  names(time_means) <- summary_stats$training_function
+  fastest <- names(which.min(time_means))
+  slowest <- names(which.max(time_means))
+  
+  write_and_print(sprintf("- Fastest method: %s (%.2f)\n", 
+                        fastest, min(time_means)), file_conn)
+  write_and_print(sprintf("- Slowest method: %s (%.2f)\n", 
+                        slowest, max(time_means)), file_conn)
+  
+  # Close the connection
+  close(file_conn)
+  cat("\nReport has been saved to", output_file, "\n")
+}
 
 ```
 
+*Remark:* The code for the statistical analysis is hidden in the final report, but can be visualized in the attached Rmarkdown file. This code was generated by the Claude 3.5 Sonnet LLM model (Anthropic AI, 2024).  
+
+```{r}
+
+# Run the statistical analysis with alpha = 0.15
+alpha <- 0.15
+analyze_and_report(alpha)
+
+```
+
+With a significance level of 0.15, we can conclude from these results that the GA training method performs significantly worse in accuracy than both BP and ES methods. While ES achieved slightly higher accuracy than BP on average, this difference is likely insignificant and could be due to random variation. In terms of training time, no significant differences were found among the different methods.
 
 ## Conclusion
 

@@ -73,14 +73,6 @@ Dunn's Test Interpretation:
 
 Summary: Found significant differences in 2 out of 3 comparisons.
 
-Calculating effect size (Eta-squared):
-ANOVA Table (type II tests)
-
-             Effect DFn DFd     F     p p<.05   ges
-1 training_function   2  69 2.179 0.121       0.059
-
-Effect size interpretation: small effect (ges = 0.059)
-
 
 Analysis of training_time
 ======================
@@ -127,14 +119,6 @@ Residuals         69 7650958  110883
 
 ANOVA Interpretation: No significant differences between groups (p = 0.8800)
 
-Calculating effect size (Eta-squared):
-ANOVA Table (type II tests)
-
-             Effect DFn DFd     F    p p<.05   ges
-1 training_function   2  69 0.128 0.88       0.004
-
-Effect size interpretation: negligible effect (ges = 0.004)
-
 
 Summary Statistics
 =================
@@ -146,12 +130,10 @@ Summary Statistics
 3 train_ga             24         0.744       0.146      539.    333.
 
 
-Final Conclusions
-================
-Test Accuracy:
+Average Test Accuracy:
 - Best performing method: train_es (0.841)
 - Worst performing method: train_ga (0.744)
 
-Training Time:
+Average Training Time:
 - Fastest method: train_bp (523.58)
 - Slowest method: train_es (571.29)

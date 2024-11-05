@@ -1,0 +1,157 @@
+Statistical Analysis Report for Training Functions
+==============================================
+
+Using significance level (alpha) = 0.150
+
+
+
+Analysis of test_accuracy
+======================
+
+Checking Statistical Assumptions for test_accuracy
+----------------------------------------
+
+Performing Shapiro-Wilk test for normality:
+H0: Data is normally distributed
+H1: Data is not normally distributed
+
+# A tibble: 3 × 3
+  training_function shapiro_stat shapiro_p
+  <fct>                    <dbl>     <dbl>
+1 train_bp                 0.831   0.00100
+2 train_es                 0.847   0.00195
+3 train_ga                 0.960   0.433  
+
+Normality Test Interpretation:
+- train_bp: Not normally distributed (p = 0.0010)
+- train_es: Not normally distributed (p = 0.0019)
+- train_ga: Normally distributed (p = 0.4329)
+
+Performing Levene's test for homogeneity of variance:
+H0: Variances are equal across groups
+H1: Variances are not equal across groups
+
+Levene's Test for Homogeneity of Variance (center = median)
+      Df F value Pr(>F)
+group  2  0.5115 0.6019
+      69               
+
+Variance Test Interpretation: Equal variances across groups (p = 0.6019)
+
+Based on these results, non-parametric tests will be used.
+
+Performing Kruskal-Wallis test:
+H0: All groups have the same distribution
+H1: At least one group has a different distribution
+
+
+	Kruskal-Wallis rank sum test
+
+data:  test_accuracy by training_function
+Kruskal-Wallis chi-squared = 5.5998, df = 2, p-value = 0.06082
+
+
+Kruskal-Wallis Test Interpretation: There are significant differences between groups (p = 0.0608)
+
+Performing Dunn's test for pairwise comparisons:
+H0: No difference between the pair of groups
+H1: Significant difference exists between the pair of groups
+
+           Comparison           Z    P.unadj      P.adj
+1 train_bp - train_es 0.006900156 0.99449452 0.99449452
+2 train_bp - train_ga 2.052796351 0.04009233 0.12027700
+3 train_es - train_ga 2.045896195 0.04076658 0.06114988
+
+Dunn's Test Interpretation:
+-------------------------
+- train_es vs train_ga: Significant difference (p = 0.0611)
+  train_es (0.841) performed better than train_ga (0.744)
+- train_bp vs train_ga: Significant difference (p = 0.1203)
+  train_bp (0.821) performed better than train_ga (0.744)
+- train_bp vs train_es: No significant difference (p = 0.9945)
+  train_es (0.841) performed better than train_bp (0.821)
+
+Summary: Found significant differences in 2 out of 3 comparisons.
+
+Calculating effect size (Eta-squared):
+ANOVA Table (type II tests)
+
+             Effect DFn DFd     F     p p<.05   ges
+1 training_function   2  69 2.179 0.121       0.059
+
+Effect size interpretation: small effect (ges = 0.059)
+
+
+Analysis of training_time
+======================
+
+Checking Statistical Assumptions for training_time
+----------------------------------------
+
+Performing Shapiro-Wilk test for normality:
+H0: Data is normally distributed
+H1: Data is not normally distributed
+
+# A tibble: 3 × 3
+  training_function shapiro_stat shapiro_p
+  <fct>                    <dbl>     <dbl>
+1 train_bp                 0.962     0.470
+2 train_es                 0.963     0.502
+3 train_ga                 0.962     0.489
+
+Normality Test Interpretation:
+- train_bp: Normally distributed (p = 0.4701)
+- train_es: Normally distributed (p = 0.5023)
+- train_ga: Normally distributed (p = 0.4889)
+
+Performing Levene's test for homogeneity of variance:
+H0: Variances are equal across groups
+H1: Variances are not equal across groups
+
+Levene's Test for Homogeneity of Variance (center = median)
+      Df F value Pr(>F)
+group  2  0.0044 0.9956
+      69               
+
+Variance Test Interpretation: Equal variances across groups (p = 0.9956)
+
+Based on these results, parametric tests will be used.
+
+Performing One-way ANOVA:
+H0: All group means are equal
+H1: At least one group mean is different
+
+                  Df  Sum Sq Mean Sq F value Pr(>F)
+training_function  2   28398   14199   0.128   0.88
+Residuals         69 7650958  110883               
+
+ANOVA Interpretation: No significant differences between groups (p = 0.8800)
+
+Calculating effect size (Eta-squared):
+ANOVA Table (type II tests)
+
+             Effect DFn DFd     F    p p<.05   ges
+1 training_function   2  69 0.128 0.88       0.004
+
+Effect size interpretation: negligible effect (ges = 0.004)
+
+
+Summary Statistics
+=================
+# A tibble: 3 × 6
+  training_function     n mean_accuracy sd_accuracy mean_time sd_time
+  <fct>             <int>         <dbl>       <dbl>     <dbl>   <dbl>
+1 train_bp             24         0.821       0.205      524.    330.
+2 train_es             24         0.841       0.155      571.    337.
+3 train_ga             24         0.744       0.146      539.    333.
+
+
+Final Conclusions
+================
+Test Accuracy:
+- Best performing method: train_es (0.841)
+- Worst performing method: train_ga (0.744)
+
+Training Time:
+- Fastest method: train_bp (523.58)
+- Slowest method: train_es (571.29)

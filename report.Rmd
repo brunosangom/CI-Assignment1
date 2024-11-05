@@ -270,7 +270,7 @@ hyperparam_search_ga <- function(train_data, validation_data, pcrossover_values,
     best_pop_size_ga <- best_params$popSize
 
 
-    cat("Best sigma:", best_sigma_es, "Best popSize:", best_pop_size_es, "Best score:", best_score, "\n")
+    cat("Best pcrossover:", best_p_crossover_ga, "Best pmutation:", best_p_mutation_ga, "Best popsize:", best_pop_size_ga, "Best score:", best_score, "\n")
     
     return(list(best_model = best_model, best_score = best_score, best_params = best_params))
 }
@@ -283,8 +283,8 @@ size <- 10
 maxit <- 200
 
 # Define possible hyperparameter ranges
-pcrossover_values <- seq(0.1, 1.0, by = 0.1)
-pmutation_values <- seq(0.1, 1.0, by = 0.1)
+pcrossover_values <- c(0.7, 0.8, 0.9)
+pmutation_values <- c(0.05, 0.1, 0.2)
 popSize_values <- c(20, 50, 100)
 
 best_result <- hyperparam_search_ga(train_data, validation_data, pcrossover_values, pmutation_values, popSize_values)
@@ -408,8 +408,8 @@ size <- 10
 maxit <- 200
 
 # Define possibel hyperparameter ranges
-sigma_values <- seq(0.1, 1.0, by = 0.1)
-popSize_values <- c(20, 50, 100)
+sigma_values <- c(0.4, 0.5, 0.6)
+popSize_values <- c(20, 50, 70)
 
 best_result <- hyperparam_search_es(train_data, validation_data, sigma_values, popSize_values)
 

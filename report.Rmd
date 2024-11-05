@@ -256,6 +256,17 @@ fitness_function <- function(weights) {
 
 ## Hyperparameter Search GA
 
+The genetic algorithm training function employs three key parameters: 
+p-crossover, which represents the probability of combining genes from two parent solutions to create offspring; 
+p-mutation, which indicates the likelihood of introducing random changes to a solution to maintain genetic diversity; and 
+popsize, which defines the total number of candidate solutions in each generation. 
+
+Since we are modifying parameters of the data such as noise, hardness, and training size, we decided to keep the GA parameters constant.
+To establish these constant parameters, we conducted a small hyperparameter search using a training size of 200, a hardness of 0.5, and a noise of 0.5.
+We will vary these values in our evaluation, but for simplicity, we chose these parameters as they represent a middle ground within the ranges we will assess later. 
+By running the code chunk below, we identified the optimal parameters: a crossover probability of 0.7, a mutation probability of 0.2, and a population size of 100.
+
+
 ```{r, eval=FALSE}
 hyperparam_search_ga <- function(train_data, validation_data, pcrossover_values, pmutation_values, popSize_values) {
   print("Running hyperparameter search ga...")
@@ -313,7 +324,8 @@ best_pop_size_ga <- best_result$best_params$popSize
 ```
 
 ```{r, echo=FALSE}
-# Hard-coded explanation
+# The following values are obtained by running the hyperparameter search for GA.
+# In order to avoid running this chunk multiple times, we decided to hard-code the results of the search.
 
 best_pcrossover_ga <- 0.7
 best_pmutation_ga <- 0.2
@@ -385,6 +397,9 @@ train_es <- function(train_data, size, maxit, specific_params) {
 ```
 
 ## Hyperparameter Search ES
+Similarly to the hyperparameter search conducted for the genetic algorithm (GA), we also perform a hyperparameter search for evolutionary strategies (ES) to identify the optimal values for \sigma, which represents the standard deviation used to control the mutation step size, and the population size, which defines the number of candidate solutions evaluated in each generation. 
+We utilize the same data configuration as for the GA hyperparameter tuning to ensure consistency. 
+By running the code chunk below, we determined the best \sigma to be 0.4 and the best population size to be 70.
 
 ```{r, eval=FALSE}
 hyperparam_search_es <- function(train_data, validation_data, sigma_values, popSize_values) {
@@ -436,16 +451,16 @@ best_pop_size_es <- best_result$best_params$popSize
 
 
 ```{r, echo=FALSE}
-# Hard-coded explanation
+# The following values are obtained by running the hyperparameter search for ES.
+# In order to avoid running this chunk multiple times, we decided to hard-code the results of the search.
 
-# TODO modify numbers
 best_sigma_es <- 0.4
 best_pop_size_es <- 70
 ```
 
 ## Experimental Setup 
-- Explain setup of how evaluation is performed (Parameters we are variating)
-- Highlight results in textual form
+In the experimental setup, we specify various data configurations, namely, hardness, noise, and training sizes. 
+Additionally we vary numbers of hidden neurons (sizes). For each training approach (backpropagation, GA and ES), we evaluate performance by tracking both training times and testing accuracies.
 
 ```{r, eval = FALSE}
 suppressPackageStartupMessages(library(tictoc))

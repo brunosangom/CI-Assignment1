@@ -376,7 +376,6 @@ for (hardness in hardness_values) {
               noise = noise,
               training_size = training_size,
               size = size,
-              maxit = maxit,
               training_function = training_function,
               test_accuracy = test_accuracy,
               training_time = training_time

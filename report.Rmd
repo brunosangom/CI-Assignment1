@@ -411,8 +411,8 @@ best_pop_size_es <- best_result$best_params$popSize
 # Hard-coded explanation
 
 # TODO modify numbers
-best_sigma_es <- 0.7
-best_pop_size_es <- 0.2
+best_sigma_es <- 0.4
+best_pop_size_es <- 70
 ```
 
 ## Experimental Setup 

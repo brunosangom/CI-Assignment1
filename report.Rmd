@@ -7,7 +7,10 @@ output: html_document
 
 ## Introduction
 
-This is an example of R Markdown.
+This report describes our experiment in training a neural network (NN) using backpropagation, genetic algorithms (GA), and evolutionary strategies (ES), and evaluating these methods on the testing dataset.
+We begin by outlining the data collection process, using synthetic data generation based on the real Iris dataset.
+Next, we detail each of the three training approaches (backpropagation, GA, and ES) and conduct a hyperparameter search for GA and ES.
+Finally, we assess the accuracy and training time of these methods under different synthetic data conditions (hardness, noise, and training size) and present a statistical analysis of the results to identify any significant differences.
 
 ## Data Collection
 - We want to base our synthetic data on the Iris Dataset while still having the flexibility of controllling hardness etc. 
@@ -120,7 +123,8 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
 ```{r}
 suppressPackageStartupMessages(library(nnet))
 
-train_bp <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
+train_bp <- function(train_data, size, maxit, specific_params) {
+  decay <- specific_params$decay
   train_data$y_train <- as.factor(train_data$y_train)
 
   model <- nnet(y_train ~ .,
@@ -154,7 +158,11 @@ test <- function(model, test_data) {
 suppressPackageStartupMessages(library(GA))
 
 
-train_ga <- function(train_data, size = 10, maxit = 200, pcrossover, pmutation, popSize) {
+train_ga <- function(train_data, size, maxit, specific_params) {
+  pcrossover <- specific_params$pcrossover
+  pmutation <- specific_params$pmutation
+  popSize <- specific_params$pop_size_ga
+
   min_size <- 1
   max_size <- size
 
@@ -241,7 +249,9 @@ hyperparam_search_ga <- function(train_data, validation_data, pcrossover_values,
   for (pcrossover in pcrossover_values) {
     for (pmutation in pmutation_values) {
       for (popSize in popSize_values) {
-        model <- train_ga(train_data = train_data, size, maxit, pcrossover = pcrossover, pmutation = pmutation, popSize = popSize)
+        specific_params <- list(pcrossover = pcrossover, pmutation = pmutation, pop_size_ga = popSize)
+
+        model <- train_ga(train_data, size, maxit, specific_params)
 
         score <- test(model, validation_data)
 
@@ -299,12 +309,11 @@ best_pop_size_ga <- 100
 suppressPackageStartupMessages(library(cmaesr))
 
 # TODO modify optional param values
-train_es <- function(train_data, size, maxit, sigma = 0.5, popSize = 50) {
+train_es <- function(train_data, size, maxit, specific_params) {
+  sigma <- specific_params$sigma
+  popSize <- specific_params$pop_size_es
   min_size <- 1
   max_size <- size
-  # Based on hyperparameters from hyperparameter search
-  sigma <- sigma
-  popSize <- popSize
 
   n_params <- 5 * max_size + (max_size + 1) * 3
 
@@ -367,7 +376,8 @@ hyperparam_search_es <- function(train_data, validation_data, sigma_values, popS
 
   for (sigma in sigma_values) {
     for (popSize in popSize_values) {
-      model <- train_es(train_data, size, maxit, sigma, popSize)
+      specific_params <- list(sigma = sigma, pop_size_es = popSize)
+      model <- train_es(train_data, size, maxit, specific_params)
 
       score <- test(model, validation_data)
 
@@ -435,6 +445,7 @@ test_size <- 1000
 sizes <- c(1, 10, 20)
 maxit <- 200
 training_functions <- c("train_bp", "train_ga", "train_es")
+specific_params <- list(decay = 0.001, pcrossover = best_pcrossover_ga, pmutation = best_pmutation_ga, pop_size_ga = best_pop_size_ga, sigma = best_sigma_es, pop_size_es = best_pop_size_es)
 
 
 # ---------- RESULT STRUCTURE ----------
@@ -469,7 +480,7 @@ for (hardness in hardness_values) {
 
           # Measure training time using tic and toc
           tic()
-          model <- func(train_data, size, maxit)
+          model <- func(train_data = train_data, size = size, maxit = maxit, specific_params = specific_params)
           training_time <- toc(quiet = TRUE)$toc
 
           # Test accuracy

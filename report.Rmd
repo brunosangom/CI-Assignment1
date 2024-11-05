@@ -7,19 +7,26 @@ output: html_document
 
 ## Introduction
 
-This is an example of R Markdown.
+This report describes our experiment in training a neural network (NN) using backpropagation, genetic algorithms (GA), and evolutionary strategies (ES), and evaluating these methods on the testing dataset.
+
+We begin by outlining the data collection process, using synthetic data generation based on the real Iris dataset.
+
+Next, we detail each of the three training approaches (backpropagation, GA, and ES) and conduct a hyperparameter search for GA and ES.
+
+Finally, we assess the accuracy and training time of these methods under different synthetic data conditions (hardness, noise, and training size) and present a statistical analysis of the results to identify any significant differences.
 
 ## Data Collection
-- We want to base our synthetic data on the Iris Dataset while still having the flexibility of controllling hardness etc. 
+
+We aim to generate synthetic data based on the Iris dataset, a widely used benchmark in machine learning, to maintain a connection to a real-world problem while still allowing for flexibility. 
+
+By creating synthetic data instead of using the original Iris dataset, we can control the hardness of the classification task and adjust the level of noise, enabling a more flexible experimental setup.
 
 ### Analysis Iris Dataset
-We want to generate our synthetic data based on the Iris dataset, commonly used for machine learning experiments, so that it still has a connection to a real world problem, despite being synthetic.
-The purpose of generating this data instead of using the Iris dataset itself is so that we can be in control of the hardness of the classification problem and the amount of noise present.
+The Iris dataset consists of flower samples from three different species: Setosa, Versicolor, and Virginica. Each sample includes measurements of four features: sepal length, sepal width, petal length, and petal width.
 
-The Iris dataset describes flower samples taken from 3 different species: setosa, versicolor and virginica. For each sample, 4 features are measured: sepal length and width, and petal length and width.
-In order for our synthetic data to simulate Iris samples, we first need to perform a preliminary study on the feature means and covariances for each of the 3 flower species.
+To ensure that our synthetic data accurately simulates Iris samples, we first perform a preliminary analysis to calculate the feature means and covariances for each of the three species.
 
-These statistics are calculated and displayed in the following code chunk:
+The following code chunk calculates and displays these statistics:
 
 ```{r}
 
@@ -44,31 +51,34 @@ print(cov_matrices)
 ```
 
 ### Synthetic Data Generation
-- Use data from previous section
-- Explain parameters
-  - How hardness controls data
-  - How noise controls data
-  - How number of training samples controls
 
+By using the means and covariances of the three flower species, we generate synthetic samples by drawing data points from distributions defined by these statistical properties.
+
+To introduce flexibility, we add parameters to control two aspects: *hardness* and *noise* of the data.
+
+- *Hardness* controls the separation between species, with higher values making the classification task easier. Increasing hardness involves expanding the distance between the species’ feature distributions, making them more distinct and easier to classify.
+
+- *Noise* adds random variation to the data, making the classification task more challenging. A higher noise parameter increases overlap between the species’ distributions by introducing variability to feature values. This reduces the distinctiveness of the species and makes it harder for the model to classify them correctly.
+
+These parameters allow us to simulate a range of classification challenges, from well-separated species with minimal noise (easy classification) to highly overlapping distributions with high noise (difficult classification).
 
 
 ```{r}
-
-suppressPackageStartupMessages(library(MASS))  
-suppressPackageStartupMessages(library(caret)) 
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(lattice))
 suppressPackageStartupMessages(library(GGally))
 
 
 generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, hardness = 0.5) {
   set.seed(123)
-  
-  mu_setosa <- c(5.01, 3.43, 1.46, 0.246)  
-  mu_versicolor <- c(5.94, 2.77, 4.26, 1.33)  
+
+  mu_setosa <- c(5.01, 3.43, 1.46, 0.246)
+  mu_versicolor <- c(5.94, 2.77, 4.26, 1.33)
   mu_virginica <- c(6.59, 2.97, 5.55, 2.03)
 
   mu_setosa <- mu_setosa - c(hardness, hardness, hardness, hardness)
-  mu_virginica <- mu_virginica + c(hardness, hardness, hardness, hardness) 
+  mu_virginica <- mu_virginica + c(hardness, hardness, hardness, hardness)
 
   setosa_cov <- matrix(c(
     0.12424898, 0.099216327, 0.016355102, 0.010330612,
@@ -89,33 +99,33 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
     0.09376327, 0.10400408, 0.07137959, 0.04762857,
     0.30328980, 0.07137959, 0.30458776, 0.04882449,
     0.04909388, 0.04762857, 0.04882449, 0.07543265
-  ), nrow = 4, byrow = TRUE)  
-  
+  ), nrow = 4, byrow = TRUE)
+
   X_setosa_train <- mvrnorm(n_train %/% 3, mu_setosa, setosa_cov)
   X_setosa_val <- mvrnorm(n_val %/% 3, mu_setosa, setosa_cov)
-  X_setosa_test <- mvrnorm(n_test %/% 3, mu_setosa, setosa_cov) 
-  
+  X_setosa_test <- mvrnorm(n_test %/% 3, mu_setosa, setosa_cov)
+
   X_versicolor_train <- mvrnorm(n_train %/% 3, mu_versicolor, versicolor_cov)
   X_versicolor_val <- mvrnorm(n_val %/% 3, mu_versicolor, versicolor_cov)
-  X_versicolor_test <- mvrnorm(n_test %/% 3, mu_versicolor, versicolor_cov) 
-  
+  X_versicolor_test <- mvrnorm(n_test %/% 3, mu_versicolor, versicolor_cov)
+
   X_virginica_train <- mvrnorm(n_train %/% 3, mu_virginica, virginica_cov)
   X_virginica_val <- mvrnorm(n_val %/% 3, mu_virginica, virginica_cov)
   X_virginica_test <- mvrnorm(n_test %/% 3, mu_virginica, virginica_cov)
-  
+
   X_train <- rbind(X_setosa_train, X_versicolor_train, X_virginica_train)
   y_train <- c(rep(0, n_train %/% 3), rep(1, n_train %/% 3), rep(2, n_train %/% 3))
-  
+
   X_val <- rbind(X_setosa_val, X_versicolor_val, X_virginica_val)
   y_val <- c(rep(0, n_val %/% 3), rep(1, n_val %/% 3), rep(2, n_val %/% 3))
-  
+
   X_test <- rbind(X_setosa_test, X_versicolor_test, X_virginica_test)
   y_test <- c(rep(0, n_test %/% 3), rep(1, n_test %/% 3), rep(2, n_test %/% 3))
-  
+
   X_train <- X_train + rnorm(length(X_train), 0, noise_level)
   X_val <- X_val + rnorm(length(X_val), 0, noise_level)
   X_test <- X_test + rnorm(length(X_test), 0, noise_level)
-  
+
   list(
     train = data.frame(X_train, y_train = as.factor(y_train)),
     val = data.frame(X_val, y_val = as.factor(y_val)),
@@ -141,42 +151,43 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
 #   }
 # }
 # }
-
 ```
 
 ## Neural Network
 
-- Explain how it was implemented
+In this section, we utilize the *nnet* package to implement a training function that utilizes backpropagation for our neural network by fitting a model to the training data, specifying parameters such as the number of units in the hidden layer and decay rate.
+
+Additionally, we define a test function to evaluate our neural network on the testing data, assessing its predictive accuracy. 
+
+This testing function is employed not only for evaluating the training using backpropagation, as defined here, but also for assessing models trained with genetic algorithms and evolutionary strategies.
 
 ```{r}
-
 suppressPackageStartupMessages(library(nnet))
 
-train_bp <- function(train_data, size = 1, maxit = 200, decay = 0.001) {
-
+train_bp <- function(train_data, size, maxit, specific_params) {
+  decay <- specific_params$decay
   train_data$y_train <- as.factor(train_data$y_train)
 
-  model <- nnet(y_train ~ ., 
-                data = train_data, 
-                size = size, 
-                maxit = maxit, 
-                decay = decay, 
-                linout = FALSE, 
-                trace=FALSE
-                )
+  model <- nnet(y_train ~ .,
+    data = train_data,
+    size = size,
+    maxit = maxit,
+    decay = decay,
+    linout = FALSE,
+    trace = FALSE
+  )
 
   return(model)
 }
 
-test <- function(model, test_data){
+test <- function(model, test_data) {
+  y_pred <- predict(model, newdata = test_data[, -ncol(test_data)], type = "class")
 
-    y_pred = predict(model, newdata = test_data[, -ncol(test_data)], type = "class")
+  accuracy <- accuracy <- mean(y_pred == test_data[, ncol(test_data)])
 
-    accuracy = accuracy <- mean(y_pred == test_data[, ncol(test_data)])
-    
-    # cat(sprintf("Test Accuracy: %.4f\n", accuracy))
-    
-    return(accuracy)
+  # cat(sprintf("Test Accuracy: %.4f\n", accuracy))
+
+  return(accuracy)
 }
 ```
 
@@ -194,123 +205,135 @@ The training process of the Neural Network with the Genetic Algorithm is as foll
 This process is implemented in the following code:
 
 ```{r}
-
 suppressPackageStartupMessages(library(GA))
 
 
-train_ga <- function(train_data, size=10, maxit=200, pcrossover, pmutation, popSize){
-
+train_ga <- function(train_data, size, maxit, specific_params) {
+  pcrossover <- specific_params$pcrossover
+  pmutation <- specific_params$pmutation
+  popSize <- specific_params$pop_size_ga
 
   min_size <- 1
   max_size <- size
-  
-    n_params <- 5 * max_size + (max_size + 1) * 3
 
-    # Set lower and upper bounds for the weights
-    lower <- c(min_size, rep(-1, n_params))
-    upper <- c(max_size, rep(1, n_params))
+  n_params <- 5 * max_size + (max_size + 1) * 3
 
-    # Set up GA parameters with filled lower and upper bounds
-    ga_model <- ga(
-        type = "real-valued",
-        fitness = fitness_function,
-        lower = lower,
-        upper = upper,
-        pcrossover = pcrossover,
-        pmutation = pmutation,
-        popSize = popSize,
-        maxiter = maxit,
-        run = 50,
-        monitor = FALSE
-)
-    # Retrieve optimized weights
-    # Returns all of the individuals that are tied for the best fitness score, we only keep the first
-    optimal_weights <- ga_model@solution[1, ]
+  # Set lower and upper bounds for the weights
+  lower <- c(min_size, rep(-1, n_params))
+  upper <- c(max_size, rep(1, n_params))
 
-    optimal_size <- round(optimal_weights[1])
-    nn_model <- nnet(
-        y_train ~ ., 
-        data = train_data, 
-        size = optimal_size,
-        linout = FALSE,
-        maxit = 0,
-        decay = 0,
-        trace = FALSE
-    )
+  # Set up GA parameters with filled lower and upper bounds
+  ga_model <- ga(
+    type = "real-valued",
+    fitness = fitness_function,
+    lower = lower,
+    upper = upper,
+    pcrossover = pcrossover,
+    pmutation = pmutation,
+    popSize = popSize,
+    maxiter = maxit,
+    run = 50,
+    monitor = FALSE
+  )
+  # Retrieve optimized weights
+  # Returns all of the individuals that are tied for the best fitness score, we only keep the first
+  optimal_weights <- ga_model@solution[1, ]
 
-    optimal_n_params <- 5 * optimal_size + (optimal_size + 1) * 3
+  optimal_size <- round(optimal_weights[1])
+  nn_model <- nnet(
+    y_train ~ .,
+    data = train_data,
+    size = optimal_size,
+    linout = FALSE,
+    maxit = 0,
+    decay = 0,
+    trace = FALSE
+  )
 
-    # Set weights of the neural network
-    nn_model$wts <- optimal_weights[2:(optimal_n_params + 1)]
+  optimal_n_params <- 5 * optimal_size + (optimal_size + 1) * 3
 
-    return (nn_model)
+  # Set weights of the neural network
+  nn_model$wts <- optimal_weights[2:(optimal_n_params + 1)]
+
+  return(nn_model)
 }
 
 
 fitness_function <- function(weights) {
-    # Instantiate the neural network with the number of neurons given by the first gene
-    size <- round(weights[1])
-    nn_model <- nnet(
-        y_train ~ ., 
-        data = train_data, 
-        size = size,
-        linout = FALSE,
-        maxit = 0,
-        decay = 0,
-        trace = FALSE
-    )
+  # Instantiate the neural network with the number of neurons given by the first gene
+  size <- round(weights[1])
+  nn_model <- nnet(
+    y_train ~ .,
+    data = train_data,
+    size = size,
+    linout = FALSE,
+    maxit = 0,
+    decay = 0,
+    trace = FALSE
+  )
 
-    # Set weights of the neural network
-    nn_model$wts <- weights[-1]
-    
-    # Predict on training data
-    predictions <- predict(nn_model, as.matrix(train_data[, -ncol(train_data)]), type = "class")
-    
-    # Calculate misclassification error
-    error <- mean(predictions != train_data[, ncol(train_data)])
-    
-    # Return negative error to maximize fitness function
-    return(-error)
+  # Set weights of the neural network
+  nn_model$wts <- weights[-1]
+
+  # Predict on training data
+  predictions <- predict(nn_model, as.matrix(train_data[, -ncol(train_data)]), type = "class")
+
+  # Calculate misclassification error
+  error <- mean(predictions != train_data[, ncol(train_data)])
+
+  # Return negative error to maximize fitness function
+  return(-error)
 }
 ```
 
 ## Hyperparameter Search GA
 
-```{r}
+The genetic algorithm training function employs three key parameters: 
+p-crossover, which represents the probability of combining genes from two parent solutions to create offspring; 
+p-mutation, which indicates the likelihood of introducing random changes to a solution to maintain genetic diversity; and 
+popsize, which defines the total number of candidate solutions in each generation. 
 
+Since we are modifying parameters of the data such as noise, hardness, and training size, we decided to keep the GA parameters constant.
+To establish these constant parameters, we conducted a small hyperparameter search using a training size of 200, a hardness of 0.5, and a noise of 0.5.
+We will vary these values in our evaluation, but for simplicity, we chose these parameters as they represent a middle ground within the ranges we will assess later. 
+By running the code chunk below, we identified the optimal parameters: a crossover probability of 0.7, a mutation probability of 0.2, and a population size of 100.
+
+
+```{r, eval=FALSE}
 hyperparam_search_ga <- function(train_data, validation_data, pcrossover_values, pmutation_values, popSize_values) {
-    print("Running hyperparameter search ga...")
-    
-    best_model <- NULL
-    best_score <- -Inf  
-    best_params <- list()
-    
-    for (pcrossover in pcrossover_values) {
-      for (pmutation in pmutation_values){
-        for (popSize in popSize_values) {
-            
-            model <- train_ga(train_data=train_data, size, maxit, pcrossover=pcrossover, pmutation=pmutation, popSize=popSize)
-            
-            score <- test(model, validation_data)
-            
-            if (score > best_score) {
-                best_score <- score
-                best_model <- model
-                best_params <- list(pcrossover = pcrossover, pmutation = pmutation, popSize = popSize)
-            }
-            
-            cat("Tested pcrossover =", pcrossover, "pmutation =", pmutation, "popSize =", popSize, "-> score:", score, "\n")
+  print("Running hyperparameter search ga...")
+
+  best_model <- NULL
+  best_score <- -Inf
+  best_params <- list()
+
+  for (pcrossover in pcrossover_values) {
+    for (pmutation in pmutation_values) {
+      for (popSize in popSize_values) {
+        specific_params <- list(pcrossover = pcrossover, pmutation = pmutation, pop_size_ga = popSize)
+
+        model <- train_ga(train_data, size, maxit, specific_params)
+
+        score <- test(model, validation_data)
+
+        if (score > best_score) {
+          best_score <- score
+          best_model <- model
+          best_params <- list(pcrossover = pcrossover, pmutation = pmutation, popSize = popSize)
         }
+
+        cat("Tested pcrossover =", pcrossover, "pmutation =", pmutation, "popSize =", popSize, "-> score:", score, "\n")
       }
     }
-    best_p_crossover_ga <- best_params$pcrossover
-    best_p_mutation_ga <- best_params$pmutation
-    best_pop_size_ga <- best_params$popSize
+  }
+  best_p_crossover_ga <- best_params$pcrossover
+  best_p_mutation_ga <- best_params$pmutation
+  best_pop_size_ga <- best_params$popSize
 
 
-    cat("Best pcrossover:", best_p_crossover_ga, "Best pmutation:", best_p_mutation_ga, "Best popsize:", best_pop_size_ga, "Best score:", best_score, "\n")
-    
-    return(list(best_model = best_model, best_score = best_score, best_params = best_params))
+  cat("Best pcrossover:", best_p_crossover_ga, "Best pmutation:", best_p_mutation_ga, "Best popsize:", best_pop_size_ga, "Best score:", best_score, "\n")
+
+  return(list(best_model = best_model, best_score = best_score, best_params = best_params))
 }
 
 data <- generate_synthetic_data(200, 200, 200, 0.5, 0.5)
@@ -330,9 +353,16 @@ best_result <- hyperparam_search_ga(train_data, validation_data, pcrossover_valu
 best_pcrossover_ga <- best_result$best_params$pcrossover
 best_pmutation_ga <- best_result$best_params$pmutation
 best_pop_size_ga <- best_result$best_params$popSize
-
 ```
 
+```{r, echo=FALSE}
+# The following values are obtained by running the hyperparameter search for GA.
+# In order to avoid running this chunk multiple times, we decided to hard-code the results of the search.
+
+best_pcrossover_ga <- 0.7
+best_pmutation_ga <- 0.2
+best_pop_size_ga <- 100
+```
 
 ## Evolution Strategy
 In this section, we set up the iterative process of training a neural network using an Evolutionary Strategy (ES) instead of back-propagation, employing the *cmaesr* library.
@@ -341,104 +371,100 @@ This process is essentially the same as the one we perform with the Genetic Algo
 - An ES minimizes the objective function, so we utilize the opposite of the previous GA fitness function as objective (i.e. the misclassification error). 
 
 ```{r}
-
 suppressPackageStartupMessages(library(cmaesr))
 
 # TODO modify optional param values
-train_es <- function(train_data, size, maxit, sigma = 0.5, popSize = 50){
+train_es <- function(train_data, size, maxit, specific_params) {
+  sigma <- specific_params$sigma
+  popSize <- specific_params$pop_size_es
+  min_size <- 1
+  max_size <- size
 
-    min_size <- 1
-    max_size <- size
-    # Based on hyperparameters from hyperparameter search
-    sigma <- sigma
-    popSize <- popSize
+  n_params <- 5 * max_size + (max_size + 1) * 3
 
-    n_params <- 5 * max_size + (max_size + 1) * 3
+  lower <- c(min_size, rep(-1, n_params))
+  upper <- c(max_size + 1, rep(1, n_params))
 
-    lower <- c(min_size, rep(-1, n_params))
-    upper <- c(max_size+1, rep(1, n_params))
+  obj.fn <- makeSingleObjectiveFunction(
+    name = "Neural Network Fitness Function",
+    fn = function(x) -fitness_function(x), # ES minimizes objective function
+    par.set = makeNumericParamSet("weights", len = n_params + 1, lower = lower, upper = upper)
+  )
 
-    obj.fn = makeSingleObjectiveFunction(
-        name = "Neural Network Fitness Function",
-        fn = function(x) -fitness_function(x), # ES minimizes objective function
-        par.set = makeNumericParamSet("weights", len = n_params + 1 , lower = lower, upper = upper)
-    )
-    
-    # Run the ES model
-    suppressWarnings(
-      es_model <- cmaes(
-        obj.fn,
-        monitor = makeMonitor(),
-        control = list(
-          sigma = sigma, # initial step size
-          lambda = popSize, # number of offspring
-          stop.ons = c(
-            list(stopOnMaxIters(maxit)), # stop after maxit iterations
-            getDefaultStoppingConditions() # or after default stopping conditions
-          )
+  # Run the ES model
+  suppressWarnings(
+    es_model <- cmaes(
+      obj.fn,
+      monitor = makeMonitor(),
+      control = list(
+        sigma = sigma, # initial step size
+        lambda = popSize, # number of offspring
+        stop.ons = c(
+          list(stopOnMaxIters(maxit)), # stop after maxit iterations
+          getDefaultStoppingConditions() # or after default stopping conditions
         )
       )
     )
+  )
 
-    # Retrieve optimized weights
-    optimal_weights <- es_model$best.param
+  # Retrieve optimized weights
+  optimal_weights <- es_model$best.param
 
-    optimal_size <- round(optimal_weights[1])
-    
-    nn_model <- nnet(
-        y_train ~ ., 
-        data = train_data, 
-        size = optimal_size,
-        linout = FALSE,
-        maxit = 0,
-        decay = 0,
-        trace = FALSE
-    )
+  optimal_size <- round(optimal_weights[1])
 
-    optimal_n_params <- 5 * optimal_size + (optimal_size + 1) * 3
+  nn_model <- nnet(
+    y_train ~ .,
+    data = train_data,
+    size = optimal_size,
+    linout = FALSE,
+    maxit = 0,
+    decay = 0,
+    trace = FALSE
+  )
 
-    # Set weights of the neural network
-    nn_model$wts <- optimal_weights[2:(optimal_n_params + 1)]
+  optimal_n_params <- 5 * optimal_size + (optimal_size + 1) * 3
 
-    return (nn_model)
+  # Set weights of the neural network
+  nn_model$wts <- optimal_weights[2:(optimal_n_params + 1)]
 
-
+  return(nn_model)
 }
-
 ```
 
 ## Hyperparameter Search ES
+Similarly to the hyperparameter search conducted for the genetic algorithm (GA), we also perform a hyperparameter search for evolutionary strategies (ES) to identify the optimal values for \sigma, which represents the standard deviation used to control the mutation step size, and the population size, which defines the number of candidate solutions evaluated in each generation. 
+We utilize the same data configuration as for the GA hyperparameter tuning to ensure consistency. 
+By running the code chunk below, we determined the best \sigma to be 0.4 and the best population size to be 70.
 
-```{r}
-
+```{r, eval=FALSE}
 hyperparam_search_es <- function(train_data, validation_data, sigma_values, popSize_values) {
-    best_model <- NULL
-    best_score <- -Inf  
-    best_params <- list()
-    
-    for (sigma in sigma_values) {
-        for (popSize in popSize_values) {
-            
-            model <- train_es(train_data, size, maxit, sigma, popSize)
-            
-            score <- test(model, validation_data)
-            
-            if (score > best_score) {
-                best_score <- score
-                best_model <- model
-                best_params <- list(sigma = sigma, popSize = popSize)
-            }
-            
-            cat("Tested sigma =", sigma, "popSize =", popSize, "-> score:", score, "\n")
-        }
-    }
-    
-    best_sigma_es <- best_params$sigma
-    best_pop_size_es <- best_params$popSize
+  best_model <- NULL
+  best_score <- -Inf
+  best_params <- list()
 
-    cat("Best sigma:", best_sigma_es, "Best popSize:", best_pop_size_es, "Best score:", best_score, "\n")
-    
-    return(list(best_model = best_model, best_score = best_score, best_params = best_params))
+  for (sigma in sigma_values) {
+    for (popSize in popSize_values) {
+      specific_params <- list(sigma = sigma, pop_size_es = popSize)
+      model <- train_es(train_data, size, maxit, specific_params)
+
+      score <- test(model, validation_data)
+
+      if (score > best_score) {
+        best_score <- score
+        best_model <- model
+        best_params <- list(sigma = sigma, popSize = popSize)
+      }
+
+      cat("Tested sigma =", sigma, "popSize =", popSize, "-> score:", score, "\n")
+    }
+  }
+
+  best_sigma_es <- best_params$sigma
+  best_pop_size_es <- best_params$popSize
+
+  cat("Best sigma:", best_sigma_es, "Best popSize:", best_pop_size_es, "Best score:", best_score, "\n")
+
+  return(list(best_model = best_model, best_score = best_score, best_params = best_params))
 }
 
 data <- generate_synthetic_data(200, 200, 200, 0.5, 0.5)
@@ -456,16 +482,22 @@ best_result <- hyperparam_search_es(train_data, validation_data, sigma_values, p
 
 best_sigma_es <- best_result$best_params$sigma
 best_pop_size_es <- best_result$best_params$popSize
-
 ```
 
 
+```{r, echo=FALSE}
+# The following values are obtained by running the hyperparameter search for ES.
+# In order to avoid running this chunk multiple times, we decided to hard-code the results of the search.
+
+best_sigma_es <- 0.4
+best_pop_size_es <- 70
+```
+
 ## Experimental Setup 
-- Explain setup of how evaluation is performed (Parameters we are variating)
-- Highlight results in textual form
+In the experimental setup, we specify various data configurations, namely, hardness, noise, and training sizes. 
+Additionally we vary numbers of hidden neurons (sizes). For each training approach (backpropagation, GA and ES), we evaluate performance by tracking both training times and testing accuracies.
 
 ```{r, eval = FALSE}
-
 suppressPackageStartupMessages(library(tictoc))
 
 # ---------- DATA PARAMETERS ----------
@@ -480,7 +512,8 @@ test_size <- 1000
 
 sizes <- c(1, 10, 20)
 maxit <- 200
-training_functions  <- c("train_bp", "train_ga", "train_es")
+training_functions <- c("train_bp", "train_ga", "train_es")
+specific_params <- list(decay = 0.001, pcrossover = best_pcrossover_ga, pmutation = best_pmutation_ga, pop_size_ga = best_pop_size_ga, sigma = best_sigma_es, pop_size_es = best_pop_size_es)
 
 
 # ---------- RESULT STRUCTURE ----------
@@ -502,42 +535,40 @@ results <- data.frame(
 for (hardness in hardness_values) {
   for (noise in noise_levels) {
     for (training_size in training_sizes) {
-
       data <- generate_synthetic_data(training_size, validation_size, test_size, noise, hardness)
-      
+
       train_data <- data$train
       val_data <- data$val
       test_data <- data$test
 
       for (size in sizes) {
         for (training_function in training_functions) {
-            
-            # Retrieve the training function by name
-            func <- get(training_function)
-            
-            # Measure training time using tic and toc
-            tic() 
-            model <- func(train_data, size, maxit)
-            training_time <- toc(quiet = TRUE)$toc
-            
-            # Test accuracy
-            test_accuracy <- test(model, test_data)
-            
-            # Store result
-            results <- rbind(results, data.frame(
-              hardness = hardness,
-              noise = noise,
-              training_size = training_size,
-              size = size,
-              training_function = training_function,
-              test_accuracy = test_accuracy,
-              training_time = training_time
-            ))
-          }
+          # Retrieve the training function by name
+          func <- get(training_function)
+
+          # Measure training time using tic and toc
+          tic()
+          model <- func(train_data = train_data, size = size, maxit = maxit, specific_params = specific_params)
+          training_time <- toc(quiet = TRUE)$toc
+
+          # Test accuracy
+          test_accuracy <- test(model, test_data)
+
+          # Store result
+          results <- rbind(results, data.frame(
+            hardness = hardness,
+            noise = noise,
+            training_size = training_size,
+            size = size,
+            training_function = training_function,
+            test_accuracy = test_accuracy,
+            training_time = training_time
+          ))
         }
       }
     }
   }
+}
 
 write.csv(results, "results.csv", row.names = FALSE)
 ```

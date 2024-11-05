@@ -7,28 +7,23 @@ output: html_document
 
 ## Introduction
 
-This report describes our experiment in training a neural network (NN) using backpropagation, genetic algorithms (GA), and evolutionary strategies (ES), and evaluating these methods on the testing dataset.
-
+This report describes our experiment in training a neural network using back-propagation (BP), genetic algorithms (GA), and evolutionary strategies (ES), and evaluating these methods on the testing dataset.
 We begin by outlining the data collection process, using synthetic data generation based on the real Iris dataset.
-
-Next, we detail each of the three training approaches (backpropagation, GA, and ES) and conduct a hyperparameter search for GA and ES.
-
+Next, we detail each of the three training approaches (BP, GA, and ES) and conduct a hyperparameter search for GA and ES.
 Finally, we assess the accuracy and training time of these methods under different synthetic data conditions (hardness, noise, and training size) and present a statistical analysis of the results to identify any significant differences.
 
 ## Data Collection
 
 We aim to generate synthetic data based on the Iris dataset, a widely used benchmark in machine learning, to maintain a connection to a real-world problem while still allowing for flexibility. 
-
 By creating synthetic data instead of using the original Iris dataset, we can control the hardness of the classification task and adjust the level of noise, enabling a more flexible experimental setup.
 
-### Analysis Iris Dataset
+### Iris Dataset Analysis
 The Iris dataset consists of flower samples from three different species: Setosa, Versicolor, and Virginica. Each sample includes measurements of four features: sepal length, sepal width, petal length, and petal width.
-
 To ensure that our synthetic data accurately simulates Iris samples, we first perform a preliminary analysis to calculate the feature means and covariances for each of the three species.
 
 The following code chunk calculates and displays these statistics:
 
-```{r}
+```{r, warning=FALSE}
 
 suppressPackageStartupMessages(library(dplyr))
 
@@ -63,7 +58,7 @@ To introduce flexibility, we add parameters to control two aspects: *hardness* a
 These parameters allow us to simulate a range of classification challenges, from well-separated species with minimal noise (easy classification) to highly overlapping distributions with high noise (difficult classification).
 
 
-```{r}
+```{r, warning=FALSE}
 suppressPackageStartupMessages(library(MASS))
 suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(lattice))
@@ -135,31 +130,31 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
 
 # ---------- DATA PARAMETERS ----------
 
-# hardness_values <- c(0.2, 2)
-# noise_levels <- c(0.2, 2)
-# training_sizes <- c(100, 500)
-# validation_size <- 1000
-# test_size <- 1000
+hardness_values <- c(0.2, 2)
+noise_levels <- c(0.2, 2)
+training_sizes <- c(100)
+validation_size <- 1000
+test_size <- 1000
  
-# for (training_size in training_sizes){
-#     for (noise_level in noise_levels) {
-#         for (hardness in hardness_values) {
-#             synthetic_data <- generate_synthetic_data(training_size, validation_size, test_size, noise_level, hardness)
-#             plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
-#             ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
-#             print(plot)
-#   }
-# }
-# }
+# Plotting the data distributions for each of the hardness and noise values
+
+for (training_size in training_sizes){
+    for (noise_level in noise_levels) {
+        for (hardness in hardness_values) {
+            synthetic_data <- generate_synthetic_data(training_size, validation_size, test_size, noise_level, hardness)
+            plot <-ggpairs(synthetic_data$train, aes(color = y_train)) +
+            ggtitle(paste("Pair Plot of Synthetic Training Data (Noise:", noise_level, ", Hardness:", hardness, ")"))
+            print(plot)
+        }
+    }
+}
 ```
 
 ## Neural Network
 
-In this section, we utilize the *nnet* package to implement a training function that utilizes backpropagation for our neural network by fitting a model to the training data, specifying parameters such as the number of units in the hidden layer and decay rate.
-
+In this section, we utilize the *nnet* package to implement a training function that utilizes BP for our neural network by fitting a model to the training data, specifying parameters such as the number of units in the hidden layer and decay rate.
 Additionally, we define a test function to evaluate our neural network on the testing data, assessing its predictive accuracy. 
-
-This testing function is employed not only for evaluating the training using backpropagation, as defined here, but also for assessing models trained with genetic algorithms and evolutionary strategies.
+This testing function is employed not only for evaluating the training using BP, as defined here, but also for assessing models trained with GAs and ESs.
 
 ```{r}
 suppressPackageStartupMessages(library(nnet))
@@ -185,21 +180,23 @@ test <- function(model, test_data) {
 
   accuracy <- accuracy <- mean(y_pred == test_data[, ncol(test_data)])
 
-  # cat(sprintf("Test Accuracy: %.4f\n", accuracy))
-
   return(accuracy)
 }
 ```
 
 ## Genetic Algorithm
-In this section, we set up the iterative process of training a neural network using a Genetic Algorithm (GA) instead of back-propagation, through the use of the *GA* library.
-In order to do this, we iteratively evaluate candidate neural networks (out of a population) according their classification performance on the training data.
-Additionally, we include as an evolvable parameter the number of neurons of the neural network, limited by a maximum size (for which we will later evaluate different values).
+In this section, we set up the iterative process of training a neural network using a GA instead of BP, through the use of the *GA* library.
+In order to do this, we iteratively evaluate candidate neural networks (out of a population) according to their classification performance on the training data.
+Additionally, we include the number of neurons of the neural network as an evolvable parameter, limited by a maximum size (for which we will later evaluate different values).
 
-The training process of the Neural Network with the Genetic Algorithm is as follows:
+The training process of the Neural Network with the GA is as follows:
+
 1. Generate a population where each individual has a random number of neurons (an integer between 1 and the maximum size) and a random sets of weights (each a real number between -1 and 1).
+
 2. For each individual of the population, build a neural network with the corresponding number of neurons and set of weights. This is a candidate neural network.
+
 3. With each candidate neural network, make predictions on the training set and, since GAs maximize the fitness function, return the opposite of the misclassification error as its fitness score.
+
 4. Once the GA is finished, extract the individual with the best fitness and return the neural network associated with it.
 
 This process is implemented in the following code:
@@ -235,6 +232,7 @@ train_ga <- function(train_data, size, maxit, specific_params) {
     run = 50,
     monitor = FALSE
   )
+
   # Retrieve optimized weights
   # Returns all of the individuals that are tied for the best fitness score, we only keep the first
   optimal_weights <- ga_model@solution[1, ]
@@ -288,10 +286,10 @@ fitness_function <- function(weights) {
 
 ## Hyperparameter Search GA
 
-The genetic algorithm training function employs three key parameters: 
-p-crossover, which represents the probability of combining genes from two parent solutions to create offspring; 
-p-mutation, which indicates the likelihood of introducing random changes to a solution to maintain genetic diversity; and 
-popsize, which defines the total number of candidate solutions in each generation. 
+The GA training function employs three key parameters: 
+**p-crossover**, which represents the probability of combining genes from two parent solutions to create offspring; 
+**p-mutation**, which indicates the likelihood of introducing random changes to a solution to maintain genetic diversity; and 
+**popsize**, which defines the total number of candidate solutions in each generation. 
 
 Since we are modifying parameters of the data such as noise, hardness, and training size, we decided to keep the GA parameters constant.
 To establish these constant parameters, we conducted a small hyperparameter search using a training size of 200, a hardness of 0.5, and a noise of 0.5.
@@ -365,15 +363,16 @@ best_pop_size_ga <- 100
 ```
 
 ## Evolution Strategy
-In this section, we set up the iterative process of training a neural network using an Evolutionary Strategy (ES) instead of back-propagation, employing the *cmaesr* library.
-This process is essentially the same as the one we perform with the Genetic Algorithm, with some key changes:
+In this section, we set up the iterative process of training a neural network using an ES instead of BP, employing the *cmaesr* library.
+This process is essentially the same as the one we perform with the GA, with some key changes:
+
 - We employ an ES instead of a GA for the evolution of the population. In addition to adapting the candidate neural networks, an ES also evolves the mutation parameters themselves separately for each individual.
+
 - An ES minimizes the objective function, so we utilize the opposite of the previous GA fitness function as objective (i.e. the misclassification error). 
 
 ```{r}
 suppressPackageStartupMessages(library(cmaesr))
 
-# TODO modify optional param values
 train_es <- function(train_data, size, maxit, specific_params) {
   sigma <- specific_params$sigma
   popSize <- specific_params$pop_size_es
@@ -432,9 +431,9 @@ train_es <- function(train_data, size, maxit, specific_params) {
 ```
 
 ## Hyperparameter Search ES
-Similarly to the hyperparameter search conducted for the genetic algorithm (GA), we also perform a hyperparameter search for evolutionary strategies (ES) to identify the optimal values for \sigma, which represents the standard deviation used to control the mutation step size, and the population size, which defines the number of candidate solutions evaluated in each generation. 
+Similarly to the hyperparameter search conducted for the GA, we also perform a hyperparameter search for ES to identify the optimal values for **sigma**, which represents the standard deviation used to control the mutation step size, and the population size, which defines the number of candidate solutions evaluated in each generation. 
 We utilize the same data configuration as for the GA hyperparameter tuning to ensure consistency. 
-By running the code chunk below, we determined the best \sigma to be 0.4 and the best population size to be 70.
+By running the code chunk below, we determined the best **sigma** to be 0.4 and the best population size to be 70.
 
 ```{r, eval=FALSE}
 hyperparam_search_es <- function(train_data, validation_data, sigma_values, popSize_values) {
@@ -474,7 +473,7 @@ validation_data <- data$val
 size <- 10
 maxit <- 200
 
-# Define possibel hyperparameter ranges
+# Define possible hyperparameter ranges
 sigma_values <- c(0.4, 0.5, 0.6)
 popSize_values <- c(20, 50, 70)
 
@@ -495,7 +494,7 @@ best_pop_size_es <- 70
 
 ## Experimental Setup 
 In the experimental setup, we specify various data configurations, namely, hardness, noise, and training sizes. 
-Additionally we vary numbers of hidden neurons (sizes). For each training approach (backpropagation, GA and ES), we evaluate performance by tracking both training times and testing accuracies.
+Additionally we vary numbers of hidden neurons (sizes). For each training approach (BP, GA and ES), we evaluate performance by tracking both training times and testing accuracies.
 
 ```{r, eval = FALSE}
 suppressPackageStartupMessages(library(tictoc))
@@ -504,7 +503,7 @@ suppressPackageStartupMessages(library(tictoc))
 
 hardness_values <- c(0.2, 2)
 noise_levels <- c(0.2, 2)
-training_sizes <- c(100, 500) # TODO ADD MORE
+training_sizes <- c(100, 500)
 validation_size <- 1000
 test_size <- 1000
 
@@ -589,38 +588,37 @@ fastest_runs <- results %>%
   filter(training_time == min(training_time)) %>%
   ungroup()
 
-fastest_runs <- fastest_runs %>% select(-test_accuracy)
-
-
 # Most accurate run per hardness and noise
 most_accurate_runs <- results %>%
   group_by(hardness, noise) %>%
   filter(test_accuracy == max(test_accuracy)) %>%
   ungroup()
 
-most_accurate_runs <- most_accurate_runs %>% select(-training_time)
-
 # Fastest Runs per Training Size:
-print(fastest_runs)
+print(fastest_runs, n = Inf, width = Inf)
 
 # Most Accurate Runs per Hardness and Noise:
-print(most_accurate_runs)
+print(most_accurate_runs, n = Inf, width = Inf)
 
 ```
 
 First, we see that the BP method seems to achieve the best training times for both training sizes; with an expected significant increase in time between the 2 sets.
 
 Then, we observe that:
+
 - For the data that most resembles the original Iris dataset (low hardness and noise values), the ES achieves the best accuracy score (0.974).
+
 - For the hardest dataset configuration (low hardness and high noise), the highest accuracy score (0.652) is very moderate, and achieved by BP.
+
 - For the easiest configuration (high hardness, low noise), several models achieve a perfect accuracy score of 1, since the data is easily separable.
+
 - For the final configuration (high hardness and noise), the BP again gets the best score (0.899), with only 1 neuron.
 
 ### Statistical Analysis
 Let us now perform an statistical analysis on the results obtained for the different training methods.
 The goal of this analysis is to find statistically significant differences among the accuracy scores and times of the 3 training methods.
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
 
 # Load required libraries
 suppressPackageStartupMessages(library(readr))
@@ -898,14 +896,14 @@ analyze_and_report <- function(alpha = 0.15) {  # Added alpha parameter with def
   
   # Close the connection
   close(file_conn)
-  cat("\nReport has been saved to", output_file, "\n")
+  # cat("\nReport has been saved to", output_file, "\n")
 }
 
 ```
 
 *Remark:* The code for the statistical analysis is hidden in the final report, but can be visualized in the attached Rmarkdown file. This code was generated by the Claude 3.5 Sonnet LLM model (Anthropic AI, 2024).  
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # Run the statistical analysis with alpha = 0.15
 alpha <- 0.15
@@ -913,7 +911,13 @@ analyze_and_report(alpha)
 
 ```
 
-With a significance level of 0.15, we can conclude from these results that the GA training method performs significantly worse in accuracy than both BP and ES methods. While ES achieved slightly higher accuracy than BP on average, this difference is likely insignificant and could be due to random variation. In terms of training time, no significant differences were found among the different methods.
+For our statistical analysis, we utilize a significance level of alpha=0.15. While using alpha=0.05 is the standard, for exploratory studies it can be appropriate to utilize higher values of alpha to help identify potential trends.
+
+Based on this level of significance, we can conclude from these results that the GA training method performs significantly worse in accuracy than both BP and ES methods. While ES achieved slightly higher accuracy than BP on average, this difference is likely insignificant and could be due to random variation. In terms of training time, no significant differences were found among the different methods.
 
 ## Conclusion
+This report analyzes the effectiveness of back-propagation, genetic algorithms, and evolutionary strategies in training a neural network using synthetic data derived from the Iris dataset. We explore various configurations of this dataset, considering factors such as training size, hardness, and noise levels. The performance of the neural network is evaluated for each training method across different data configurations, focusing on training time and accuracy.
 
+Our findings indicate that BP achieves the shortest training time for both small and large training sets. Furthermore, ES attains the highest accuracy (0.974) on the dataset configuration most closely resembling the original Iris dataset. In contrast, for the most challenging configuration characterized by a high class separation and high noise, BP demonstrates the best performance.
+
+Our statistical analysis with an alpha level of 0.15 reveals that GA significantly underperformed compared to the other two methods, while no significant differences were found across varying training sizes. This analysis serves as an initial exploration, and further studies are needed to draw more definitive conclusions.

@@ -132,7 +132,11 @@ generate_synthetic_data <- function(n_train, n_val, n_test, noise_level = 0.1, h
 
 ## Neural Network
 
-- Explain how it was implemented
+In this section, we utilize the *nnet* package to implement a training function that utilizes backpropagation for our neural network by fitting a model to the training data, specifying parameters such as the number of units in the hidden layer and decay rate.
+
+Additionally, we define a test function to evaluate our neural network on the testing data, assessing its predictive accuracy. 
+
+This testing function is employed not only for evaluating the training using backpropagation, as defined here, but also for assessing models trained with genetic algorithms and evolutionary strategies.
 
 ```{r}
 suppressPackageStartupMessages(library(nnet))
